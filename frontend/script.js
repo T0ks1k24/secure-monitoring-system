@@ -1,19 +1,31 @@
-async function loadEvents() {
-  const res = await fetch("http://127.0.0.1:8000/events");
-  const data = await res.json();
+function startEvents() {
+  const eventsList = document.getElementById("events");
+  const riskLabel = document.getElementById("risk");
 
-  const list = document.getElementById("events");
-  list.innerHTML = "";
+  eventsList.innerHTML = "";
 
-  data.forEach(e => {
+  const source = new EventSource("http://127.0.0.1:8000/events");
+
+  source.onmessage = function (event) {
+    const data = JSON.parse(event.data);
+
+    // update events list
     const li = document.createElement("li");
-    li.innerText = e.event + " (" + e.confidence.toFixed(2) + ")";
-    list.appendChild(li);
-  });
-}
+    li.innerText = `${data.event} (${data.confidence.toFixed(2)})`;
+    eventsList.appendChild(li);
 
-async function loadRisk() {
-  const res = await fetch("http://127.0.0.1:8000/risk");
-  const data = await res.json();
-  alert("Рівень ризику: " + data.risk);
+    // update risk
+    riskLabel.innerText = data.risk;
+    riskLabel.style.color =
+      data.risk === "HIGH"
+        ? "red"
+        : data.risk === "MEDIUM"
+        ? "orange"
+        : "green";
+  };
+
+  source.onerror = function () {
+    console.log("SSE connection closed");
+    source.close();
+  };
 }

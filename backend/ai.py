@@ -3,15 +3,17 @@ from ultralytics import YOLO
 model = YOLO("yolov8n.pt")
 
 
-def analyze_video():
-    results = model("test.mp4", conf=0.5)
-    events = []
+def analyze_video_stream():
+    results = model("test.mp4", conf=0.5, stream=True)
 
     for r in results:
+        person_detected = False
+        max_conf = 0.0
+
         for box in r.boxes:
             if int(box.cls[0]) == 0:  # person
-                events.append(
-                    {"event": "person_detected", "confidence": float(box.conf[0])}
-                )
+                person_detected = True
+                max_conf = max(max_conf, float(box.conf[0]))
 
-    return events
+        if person_detected:
+            yield {"event": "person_detected", "confidence": max_conf}

@@ -6,8 +6,11 @@
 </head>
 <body>
   <h1>Події безпеки</h1>
-  <button onclick="loadEvents()">Події</button>
-  <button onclick="loadRisk()">Ризик</button>
+
+  <h2>Рівень ризику: <span id="risk">LOW</span></h2>
+
+  <button onclick="startEvents()">Почати моніторинг</button>
+
   <ul id="events"></ul>
 
   <script src="script.js"></script>
