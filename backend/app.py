@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from ai import analyze_video_stream
+from video_stream import generate_video
 import json
 import time
 
@@ -47,3 +48,10 @@ def get_risk_level():
 @app.get("/risk")
 def risk():
     return {"risk": get_risk_level()}
+
+@app.get("/video")
+def video_feed():
+    return StreamingResponse(
+        generate_video(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
