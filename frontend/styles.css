@@ -1,0 +1,151 @@
+/* ====== RESET ====== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+/* ====== BODY ====== */
+body {
+  background-color: #0f172a;
+  color: #e5e7eb;
+  height: 100vh;
+}
+
+
+.top-bar {
+  background-color: #020617;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #1e293b;
+}
+
+.top-bar h1 {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.risk {
+  font-size: 16px;
+}
+
+.risk span {
+  font-weight: bold;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+
+.risk-low {
+  background-color: #14532d;
+  color: #4ade80;
+}
+
+.risk-medium {
+  background-color: #78350f;
+  color: #facc15;
+}
+
+.risk-high {
+  background-color: #7f1d1d;
+  color: #f87171;
+}
+
+
+.container {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: 20px;
+  padding: 20px;
+  height: calc(100vh - 70px);
+}
+
+
+.video-section h2 {
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.video-wrapper {
+  background-color: #020617;
+  border-radius: 12px;
+  padding: 10px;
+  height: calc(100%-32px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+}
+
+#video {
+  max-width: 100%;
+  border-radius: 8px;
+  border: 2px solid #1e293b;
+}
+
+
+.control-panel {
+  background-color: #020617;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.control-panel h2 {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.control-panel h3 {
+  margin: 16px 0 8px;
+  font-size: 16px;
+}
+
+
+.start-btn {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.start-btn:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  transform: scale(1.02);
+}
+
+
+#events {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  margin-top: 10px;
+  padding-right: 5px;
+}
+
+#events li {
+  background-color: #0f172a;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 14px;
+  border-left: 4px solid #2563eb;
+}
+
+
+#events::-webkit-scrollbar {
+  width: 6px;
+}
+
+#events::-webkit-scrollbar-thumb {
+  background-color: #334155;
+  border-radius: 6px;
+}
