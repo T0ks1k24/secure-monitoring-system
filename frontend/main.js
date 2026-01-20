@@ -14,7 +14,7 @@ function createWindow(){
     });
 
     Menu.setApplicationMenu(null)
-    mainWindow.loadFile("index.html");
+    mainWindow.loadURL("http://localhost:5173/");
 }
 
 ipcMain.on("window:minimize", () => {
