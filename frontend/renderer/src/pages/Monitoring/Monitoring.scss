@@ -62,6 +62,26 @@
   }
 }
 
+.video-inner {
+  position: relative;
+  width: 100%;
+  display: inline-block;
+}
+
+.video-inner img {
+  max-width: 100%;
+  border-radius: 8px;
+  border: 2px solid #1e293b;
+  display: block;
+}
+
+.video-inner canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none; // поки що не клікабельний
+}
+
 .control-panel {
   background-color: #020617;
   border-radius: 12px;
@@ -92,6 +112,22 @@
 
   &:hover {
     background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    transform: scale(1.02);
+  }
+}
+
+.zone-btn {
+  margin-top: 10px;
+  background: linear-gradient(135deg, #059669, #047857);
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: 0.2s;
+
+  &:hover {
+    background: linear-gradient(135deg, #047857, #065f46);
     transform: scale(1.02);
   }
 }
