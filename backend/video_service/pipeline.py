@@ -22,6 +22,10 @@ def load_zones():
 
     return [Zone(**z) for z in data]
 
+def save_zones_to_file(zones):
+    with open(ZONES_FILE, "w") as f:
+        json.dump([z.model_dump() for z in zones], f, indent=4)
+
 
 class VideoPipeline:
     def __init__(self, video_path: str):
@@ -97,3 +101,29 @@ class VideoPipeline:
             )
 
             time.sleep(0.03)
+    
+    def add_zone(self, zone_data):
+
+        new_id = 1
+        if self.zones:
+            new_id = max(z.id for z in self.zones) + 1
+
+        polygon = [
+            [int(point[0]), int(point[1])]
+            for point in zone_data["polygon"]
+        ]
+
+        zone = Zone(
+            id=new_id,
+            name=zone_data["name"],
+            polygon=polygon,
+            forbidden_classes=zone_data.get("forbidden_classes", ["person"]),
+        )
+
+        self.zones.append(zone)
+
+        self.zone_engine = ZoneEngine(self.zones)
+
+        save_zones_to_file(self.zones)
+
+        return zone

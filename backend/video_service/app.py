@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from pipeline import VideoPipeline
 import json
@@ -8,6 +9,13 @@ import time
 app = FastAPI(
     title="Secure Monitoring System",
     version="1.0.0",
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 pipeline = VideoPipeline(video_path="../video/test_2.mp4")
@@ -65,3 +73,8 @@ def video_stream():
         pipeline.video_stream(),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
+
+@app.post("/zones")
+def add_zone(zone: dict = Body(...)):
+    new_zone = pipeline.add_zone(zone)
+    return new_zone.model_dump()

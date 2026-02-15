@@ -10,6 +10,20 @@ export default function Monitoring(){
     const [zones, setZones] = useState([]);
     const [currentZone, setCurrentZone] = useState([]);
 
+    const loadZones = async () => {
+        const res = await fetch("http://127.0.0.1:8000/zones");
+        const data = await res.json();
+
+        const mapped = data.map(zone => ({
+            id: zone.id,
+            name: zone.name,
+            points: zone.polygon
+        }));
+
+        setZones(mapped);
+    };
+
+
     useEffect(() => {
         const canvas = canvasRef.current;
         const img = imgRef.current;
@@ -19,6 +33,7 @@ export default function Monitoring(){
         const resizeCanvas = () => {
             canvas.width = img.clientWidth;
             canvas.height = img.clientHeight;
+            loadZones();
         };
 
         if (img.complete) {
@@ -41,36 +56,45 @@ export default function Monitoring(){
 
         ctx.lineWidth = 2;
 
-        // 🔹 Малюємо всі збережені зони
         zones.forEach(zone => {
-            if (zone.length < 2) return;
+
+            if (!zone.points || zone.points.length < 2) return;
+
+            const color = zone.type === "danger" ? "red" : "yellow";
 
             ctx.beginPath();
-            ctx.moveTo(zone[0][0], zone[0][1]);
+            ctx.moveTo(zone.points[0][0], zone.points[0][1]);
 
-            for (let i = 1; i < zone.length; i++) {
-                ctx.lineTo(zone[i][0], zone[i][1]);
+            for (let i = 1; i < zone.points.length; i++) {
+                ctx.lineTo(zone.points[i][0], zone.points[i][1]);
             }
 
-            ctx.closePath();
-            ctx.strokeStyle = "lime";
+            if (zone.points.length > 2) {
+                ctx.closePath();
+            }
+
+            ctx.strokeStyle = color;
             ctx.stroke();
 
-            zone.forEach(([x, y]) => {
+            zone.points.forEach(([x, y]) => {
                 ctx.beginPath();
                 ctx.arc(x, y, 4, 0, Math.PI * 2);
-                ctx.fillStyle = "lime";
+                ctx.fillStyle = color;
                 ctx.fill();
             });
         });
 
-        // 🔹 Малюємо поточну зону (червону)
         if (currentZone.length > 0) {
+
             ctx.beginPath();
             ctx.moveTo(currentZone[0][0], currentZone[0][1]);
 
             for (let i = 1; i < currentZone.length; i++) {
                 ctx.lineTo(currentZone[i][0], currentZone[i][1]);
+            }
+
+            if (currentZone.length > 2) {
+                ctx.closePath();
             }
 
             ctx.strokeStyle = "red";
@@ -154,13 +178,29 @@ export default function Monitoring(){
 
                             <button
                                 className="zone-btn"
-                                onClick={() => {
+                                onClick={async () => {
                                     if (currentZone.length < 3) return;
 
-                                    setZones(prev => [...prev, currentZone]);
+                                    const newZone = {
+                                        name: `Zone ${zones.length + 1}`,
+                                        polygon: currentZone,
+                                        forbidden_classes: ["person"]
+                                    };
+
+                                    await fetch("http://127.0.0.1:8000/zones", {
+                                        method: "POST",
+                                        headers: {
+                                            "Content-Type": "application/json"
+                                        },
+                                        body: JSON.stringify(newZone)
+                                    });
+
                                     setCurrentZone([]);
                                     setMode("view");
+
+                                    loadZones();
                                 }}
+
                             >
                                 Зберегти
                             </button>
