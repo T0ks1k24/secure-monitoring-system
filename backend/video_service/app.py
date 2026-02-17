@@ -18,8 +18,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-pipeline = VideoPipeline(video_path="../video/test_2.mp4")
-
+pipelines = {
+    1: VideoPipeline(video_path="../video/test.mp4"),
+    2: VideoPipeline(video_path="../video/test_2.mp4"),
+}
 
 # ================== HEALTH ==================
 @app.get("/")
@@ -33,8 +35,10 @@ def health():
 
 
 # ================== ZONES ==================
-@app.get("/zones")
-def get_zones():
+@app.get("/zones/{camera_id}")
+def get_zones(camera_id: int):
+    pipeline = pipelines.get(camera_id)
+
     return [z.model_dump() for z in pipeline.zones]
 
 
@@ -67,14 +71,17 @@ def risk():
 
 
 # ================== VIDEO STREAM ==================
-@app.get("/video/stream")
-def video_stream():
+@app.get("/video/stream/{camera_id}")
+def video_stream(camera_id: int):
+    pipeline = pipelines.get(camera_id)
+
     return StreamingResponse(
         pipeline.video_stream(),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
 
-@app.post("/zones")
-def add_zone(zone: dict = Body(...)):
+@app.post("/zones/{camera_id}")
+def add_zone(camera_id: int, zone: dict = Body(...)):
+    pipeline = pipelines.get(camera_id)
     new_zone = pipeline.add_zone(zone)
     return new_zone.model_dump()

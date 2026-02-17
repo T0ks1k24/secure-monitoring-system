@@ -1,17 +1,19 @@
 import { useRef, useEffect, useState } from "react"
+import { useParams } from "react-router-dom";
 import "./Monitoring.scss"
 
 export default function Monitoring(){
 
     const canvasRef = useRef(null);
     const imgRef = useRef(null);
+    const {cameraId} = useParams();
 
     const [mode, setMode] = useState("view");
     const [zones, setZones] = useState([]);
     const [currentZone, setCurrentZone] = useState([]);
 
     const loadZones = async () => {
-        const res = await fetch("http://127.0.0.1:8000/zones");
+        const res = await fetch(`http://127.0.0.1:8000/zones/${cameraId}`);
         const data = await res.json();
 
         const mapped = data.map(zone => ({
@@ -140,7 +142,7 @@ export default function Monitoring(){
                     <div className="video-inner">
                         <img
                             ref={imgRef}
-                            src="http://127.0.0.1:8000/video/stream"
+                            src={`http://127.0.0.1:8000/video/stream/${cameraId}`}
                             alt="Video stream"
                         />
                         <canvas
