@@ -189,7 +189,7 @@ export default function Monitoring(){
                                         forbidden_classes: ["person"]
                                     };
 
-                                    await fetch("http://127.0.0.1:8000/zones", {
+                                    await fetch(`http://127.0.0.1:8000/zones/${cameraId}`, {
                                         method: "POST",
                                         headers: {
                                             "Content-Type": "application/json"

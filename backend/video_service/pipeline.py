@@ -13,25 +13,46 @@ import os
 ZONES_FILE = "zones.json"
 
 
-def load_zones():
+def load_zones(camera_id: int):
     if not os.path.exists(ZONES_FILE):
         return []
 
     with open(ZONES_FILE, "r") as f:
         data = json.load(f)
 
-    return [Zone(**z) for z in data]
+    return [
+        Zone(**z)
+        for z in data
+        if z["camera_id"] == camera_id
+    ]   
 
-def save_zones_to_file(zones):
+def save_zones_to_file(new_zones):
+    existing = []
+
+    if os.path.exists(ZONES_FILE):
+        with open(ZONES_FILE, "r") as f:
+            existing = json.load(f)
+
+    camera_id = new_zones[0].camera_id if new_zones else None
+
+    existing = [
+        z for z in existing
+        if z["camera_id"] != camera_id
+    ]
+
+    existing.extend([z.model_dump() for z in new_zones])
+
     with open(ZONES_FILE, "w") as f:
-        json.dump([z.model_dump() for z in zones], f, indent=4)
+        json.dump(existing, f, indent=4)
 
 
 class VideoPipeline:
-    def __init__(self, video_path: str):
+    def __init__(self, video_path: str, camera_id: int):
+        self.camera_id = camera_id
         self.video = VideoSource(video_path)
         self.detector = ObjectDetector()
-        self.zones = load_zones()
+        self.zones = load_zones(camera_id)
+
         self.zone_engine = ZoneEngine(self.zones)
 
         self.person_counter = 0
@@ -104,9 +125,12 @@ class VideoPipeline:
     
     def add_zone(self, zone_data):
 
-        new_id = 1
-        if self.zones:
-            new_id = max(z.id for z in self.zones) + 1
+        all_data = []
+        if os.path.exists(ZONES_FILE):
+            with open(ZONES_FILE, "r") as f:
+                all_data = json.load(f)
+
+        new_id = max([z["id"] for z in all_data], default=0) + 1
 
         polygon = [
             [int(point[0]), int(point[1])]
@@ -115,6 +139,7 @@ class VideoPipeline:
 
         zone = Zone(
             id=new_id,
+            camera_id = self.camera_id,
             name=zone_data["name"],
             polygon=polygon,
             forbidden_classes=zone_data.get("forbidden_classes", ["person"]),
@@ -122,8 +147,11 @@ class VideoPipeline:
 
         self.zones.append(zone)
 
+        save_zones_to_file(self.zones)
+
+        self.zones = load_zones(self.camera_id)
         self.zone_engine = ZoneEngine(self.zones)
 
-        save_zones_to_file(self.zones)
+        
 
         return zone

@@ -19,8 +19,8 @@ app.add_middleware(
 )
 
 pipelines = {
-    1: VideoPipeline(video_path="../video/test.mp4"),
-    2: VideoPipeline(video_path="../video/test_2.mp4"),
+    1: VideoPipeline(video_path="../video/test.mp4", camera_id=1),
+    2: VideoPipeline(video_path="../video/test_2.mp4", camera_id=2),
 }
 
 # ================== HEALTH ==================

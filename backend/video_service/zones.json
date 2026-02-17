@@ -1,6 +1,7 @@
 [
     {
         "id": 1,
+        "camera_id": 2,
         "name": "Zone 1",
         "polygon": [
             [
