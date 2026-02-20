@@ -1,9 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from streaming.frame_queue import frame_queues
-from streaming.yolo_worker import start_camera_worker
-import base64
-import numpy as np
-import cv2
+from application.services.ai_client import enqueue_frame
 
 router = APIRouter()
 
@@ -17,19 +13,12 @@ async def stream_receiver(websocket: WebSocket, camera_id: str):
 
     try:
         while True:
-            start_camera_worker(camera_id)
-            data = await websocket.receive_text()
 
-            jpg_bytes = base64.b64decode(data)
+            # Electron шле base64 JPEG
+            frame_base64 = await websocket.receive_text()
 
-            np_arr = np.frombuffer(jpg_bytes, np.uint8)
-
-            frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-
-            if camera_id not in frame_queues:
-                continue
-
-            frame_queues[camera_id].put(frame)
+            # Backend тільки forward у AI
+            enqueue_frame(camera_id, frame_base64)
 
     except WebSocketDisconnect:
         print(f"Camera {camera_id} disconnected")

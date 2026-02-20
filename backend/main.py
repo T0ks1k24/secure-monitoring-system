@@ -16,6 +16,7 @@ from presentation.api.ai_controller import router as ai_router
 from presentation.api.event_controller import router as event_router
 from presentation.api.zone_controller import router as zone_router
 from presentation.api.server_controller import router as server_router
+from presentation.api.stream_controller import router as stream_router
 
 # WebSocket
 from core.websocket import ws_manager
@@ -82,6 +83,7 @@ app.include_router(event_router)
 app.include_router(zone_router)
 app.include_router(server_router)
 app.include_router(auth_router)
+app.include_router(stream_router)
 
 
 @app.get("/")

@@ -25,6 +25,11 @@ services:
     networks:
       - security_net
 
+  ai:
+    build: ./ai-module
+    ports:
+      - "9000:9000"
+
 volumes:
   postgres_data:
 
