@@ -1,18 +1,37 @@
-const {app, BrowserWindow, Menu} = require("electron");
+const {app, BrowserWindow, Menu, ipcMain} = require("electron");
 const path = require("path");
 
+let mainWindow
+
 function createWindow(){
-    const win = new BrowserWindow({
+    mainWindow = new BrowserWindow({
         width: 1000,
         height: 700, 
+        frame: false,
         webPreferences: {
             preload: path.join(__dirname, "preload.js")
         }
     });
 
     Menu.setApplicationMenu(null)
-    win.loadFile("index.html");
+    mainWindow.loadURL("http://localhost:5173/");
 }
+
+ipcMain.on("window:minimize", () => {
+  mainWindow.minimize()
+})
+
+ipcMain.on("window:maximize", () => {
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize()
+  } else {
+    mainWindow.maximize()
+  }
+})
+
+ipcMain.on("window:close", () => {
+  mainWindow.close()
+})
 
 app.whenReady().then(() => {
     createWindow()
