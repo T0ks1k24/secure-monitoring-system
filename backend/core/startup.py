@@ -20,4 +20,4 @@ def create_default_admin():
 
         repo.save(user)
 
-        print("✅ Default admin created")
+        print("Default admin created")

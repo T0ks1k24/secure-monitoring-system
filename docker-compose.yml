@@ -22,11 +22,8 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/security_db
-    volumes:
-      - ./backend:/app
     networks:
       - security_net
-    command: uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:
   postgres_data:

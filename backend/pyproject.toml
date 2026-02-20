@@ -20,7 +20,8 @@ dependencies = [
     "loguru>=0.7.2",
     "psycopg2-binary>=2.9.11",
     "python-multipart>=0.0.22",
-    "requests>=2.32.5"
+    "requests>=2.32.5",
+    "opencv-python>=4.13.0.92",
 ]
 
 # =====================================================

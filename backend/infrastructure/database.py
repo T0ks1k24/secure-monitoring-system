@@ -5,7 +5,7 @@ from core.config import settings
 
 DATABASE_URL = settings.DATABASE_URL
 
-print(f"📦 Using DB: {DATABASE_URL}")
+print(f"Using DB: {DATABASE_URL}")
 
 
 if DATABASE_URL.startswith("sqlite"):
