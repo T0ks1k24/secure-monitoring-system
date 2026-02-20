@@ -1,0 +1,46 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", Arial, sans-serif;
+  user-select: none;
+}
+
+input,
+textarea {
+  user-select: text;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background-color: #0f172a;
+  color: #e5e7eb;
+}
+
+.app-content {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 35px); 
+  padding: 20px;
+}
+
+
+button {
+  cursor: pointer;
+}
+
+.titlebar {
+  -webkit-app-region: drag;
+}
+
+.titlebar button,
+.titlebar .no-drag {
+  -webkit-app-region: no-drag;
+}

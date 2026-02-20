@@ -1,3 +1,21 @@
+window.addEventListener("DOMContentLoaded", () => {
+  const minimizeBtn = document.getElementById("minimize")
+  const maximizeBtn = document.getElementById("maximize")
+  const closeBtn = document.getElementById("close")
+
+  minimizeBtn.onclick = () => {
+    window.windowAPI.minimize()
+  }
+
+  maximizeBtn.onclick = () => {
+    window.windowAPI.maximize()
+  }
+
+  closeBtn.onclick = () => {
+    window.windowAPI.close()
+  }
+})
+
 function startEvents() {
   const eventsList = document.getElementById("events");
   const riskLabel = document.getElementById("risk");

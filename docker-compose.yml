@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: security_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: security_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - security_net
+
+  backend:
+    build:
+      context: ./backend
+    container_name: security_backend
+    depends_on:
+      - postgres
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/security_db
+    networks:
+      - security_net
+
+  ai:
+    build: ./ai-module
+    ports:
+      - "9000:9000"
+
+volumes:
+  postgres_data:
+
+networks:
+  security_net:
