@@ -16,6 +16,10 @@ jobs:
       matrix:
         python-version: ["3.11"]
 
+    defaults:
+      run:
+        working-directory: backend
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,36 +34,31 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Current dir
+      - name: Sync dependencies
         run: |
-          cd backend
-
-      - name: Install dependencies
-        run: |
-          cd backend
           uv sync --frozen
 
-      - name: Install dev tools
+      - name: Install dev tools into project venv
         run: |
-          uv pip install ruff mypy pytest pytest-cov bandit pip-audit
+          uv add --dev ruff mypy pytest pytest-cov bandit pip-audit
 
-      - name: Lint (ruff)
+      - name: Lint
         run: |
           uv run ruff check .
 
-      - name: Type check (mypy)
+      - name: Type check
         run: |
           uv run mypy .
 
-      - name: Run tests with coverage
+      - name: Tests with coverage
         run: |
           uv run pytest --cov=./ --cov-report=xml
 
-      - name: Security scan (code - bandit)
+      - name: Bandit scan
         run: |
           uv run bandit -r .
 
-      - name: Dependency audit (pip-audit)
+      - name: Dependency audit
         run: |
           uv run pip-audit
 
