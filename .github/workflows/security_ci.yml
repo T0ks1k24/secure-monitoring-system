@@ -30,8 +30,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Current dir
+        run: |
+          cd backend
+
       - name: Install dependencies
         run: |
+          cd backend
           uv sync --frozen
 
       - name: Install dev tools
