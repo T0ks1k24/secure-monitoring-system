@@ -1,0 +1,97 @@
+name: Security CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          uv sync --frozen
+
+      - name: Install dev tools
+        run: |
+          uv pip install ruff mypy pytest pytest-cov bandit pip-audit
+
+      - name: Lint (ruff)
+        run: |
+          uv run ruff check .
+
+      - name: Type check (mypy)
+        run: |
+          uv run mypy .
+
+      - name: Run tests with coverage
+        run: |
+          uv run pytest --cov=./ --cov-report=xml
+
+      - name: Security scan (code - bandit)
+        run: |
+          uv run bandit -r .
+
+      - name: Dependency audit (pip-audit)
+        run: |
+          uv run pip-audit
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: |
+          npm ci
+
+      - name: Lint
+        run: |
+          npm run lint --if-present
+
+      - name: Type check
+        run: |
+          npm run typecheck --if-present
+
+      - name: Build
+        run: |
+          npm run build --if-present
+
+      - name: Audit dependencies
+        run: |
+          npm audit --audit-level=high
+
+      - name: Check outdated packages
+        run: |
+          npm outdated || true
