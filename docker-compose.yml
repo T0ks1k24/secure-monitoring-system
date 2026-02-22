@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   postgres:
     image: postgres:16
@@ -11,24 +13,25 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - security_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
       context: ./backend
     container_name: security_backend
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/security_db
     networks:
       - security_net
-
-  ai:
-    build: ./ai-module
-    ports:
-      - "9000:9000"
 
 volumes:
   postgres_data:

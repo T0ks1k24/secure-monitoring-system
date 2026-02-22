@@ -1,14 +1,16 @@
-import uuid
-from sqlalchemy import Column, String, Integer, JSON
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, Integer, String, JSON, Float
 from infrastructure.database import Base
 
 
 class ZoneModel(Base):
-
     __tablename__ = "zones"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
-    coordinates = Column(JSON, nullable=False)
-    max_people_allowed = Column(Integer, nullable=False)
+    camera_id = Column(String, nullable=False, index=True)
+
+    polygon = Column(JSON, nullable=False)
+
+    zone_type = Column(String, nullable=False)
+    risk_weight = Column(Float, default=30.0)
+    is_active = Column(Integer, default=1)

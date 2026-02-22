@@ -1,79 +1,66 @@
-import uuid
-from domain.repositories.zone_repo import ZoneRepository
-from domain.entities.zone import Zone
 from infrastructure.database import SessionLocal
 from infrastructure.models.zone_model import ZoneModel
+from domain.entities.zone import Zone
 
 
-class ZoneRepositoryImpl(ZoneRepository):
+class ZoneRepositoryImpl:
 
-    def save(self, zone: Zone) -> Zone:
-
+    def create(self, data):
         db = SessionLocal()
 
-        model = ZoneModel(
-            id=zone.id,
-            name=zone.name,
-            coordinates=zone.coordinates,
-            max_people_allowed=zone.max_people_allowed
+        zone = ZoneModel(
+            name=data.name,
+            camera_id=data.camera_id,
+            polygon=[p.dict() for p in data.polygon],
+            zone_type=data.zone_type,
+            risk_weight=data.risk_weight,
         )
 
-        db.add(model)
+        db.add(zone)
         db.commit()
+        db.refresh(zone)
         db.close()
 
         return zone
 
-    def update(self, zone: Zone) -> Zone:
-
+    def get_by_camera(self, camera_id: str):
         db = SessionLocal()
-
-        model = db.query(ZoneModel).filter(ZoneModel.id == zone.id).first()
-
-        model.name = zone.name
-        model.coordinates = zone.coordinates
-        model.max_people_allowed = zone.max_people_allowed
-
-        db.commit()
+        zones = db.query(ZoneModel).filter(
+            ZoneModel.camera_id == camera_id,
+            ZoneModel.is_active == 1
+        ).all()
         db.close()
+        return zones
 
-        return zone
-
-    def get_by_id(self, zone_id: uuid.UUID) -> Zone | None:
-
+    def update(self, zone_id, data):
         db = SessionLocal()
-        model = db.query(ZoneModel).filter(ZoneModel.id == zone_id).first()
-        db.close()
+        zone = db.query(ZoneModel).filter(ZoneModel.id == zone_id).first()
 
-        if not model:
+        if not zone:
+            db.close()
             return None
 
-        return Zone(
-            id=model.id,
-            name=model.name,
-            coordinates=model.coordinates,
-            max_people_allowed=model.max_people_allowed
-        )
+        zone.name = data.name
+        zone.polygon = [p.dict() for p in data.polygon]
+        zone.zone_type = data.zone_type
+        zone.risk_weight = data.risk_weight
 
-    def get_all(self):
-
-        db = SessionLocal()
-        models = db.query(ZoneModel).all()
+        db.commit()
+        db.refresh(zone)
         db.close()
 
-        return [
-            Zone(
-                id=m.id,
-                name=m.name,
-                coordinates=m.coordinates,
-                max_people_allowed=m.max_people_allowed
-            )
-            for m in models
-        ]
+        return zone
 
-    def delete(self, zone_id: uuid.UUID) -> None:
-
+    def delete(self, zone_id):
         db = SessionLocal()
-        db.query(ZoneModel).filter(ZoneModel.id == zone_id).delete()
+        zone = db.query(ZoneModel).filter(ZoneModel.id == zone_id).first()
+
+        if not zone:
+            db.close()
+            return False
+
+        db.delete(zone)
         db.commit()
         db.close()
+
+        return True

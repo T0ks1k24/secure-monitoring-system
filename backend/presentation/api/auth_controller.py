@@ -40,10 +40,7 @@ def get_auth_service():
     )
 
 
-# -------------------------
 # LOGIN
-# -------------------------
-
 @router.post("/login")
 def login(
     data: LoginRequest,
@@ -65,10 +62,7 @@ def login(
         raise HTTPException(status_code=401, detail=str(e))
 
 
-# -------------------------
 # CREATE USER (ADMIN)
-# -------------------------
-
 @router.post("/users")
 def create_user(
     data: CreateUserRequest,
@@ -89,10 +83,7 @@ def create_user(
     }
 
 
-# -------------------------
 # RESET PASSWORD (ADMIN)
-# -------------------------
-
 @router.post("/reset-password")
 def reset_password(
     data: ResetPasswordRequest,

@@ -1,42 +1,18 @@
-from domain.repositories.zone_repo import ZoneRepository
-from domain.entities.zone import Zone
-from application.dto.zone_dto import ZoneCreateDTO, ZoneUpdateDTO
+from infrastructure.repositories.zone_repo_impl import ZoneRepositoryImpl
+
+zone_repo = ZoneRepositoryImpl()
 
 
 class ZoneService:
 
-    def __init__(self, zone_repo: ZoneRepository):
-        self.zone_repo = zone_repo
+    async def create(self, data):
+        return zone_repo.create(data)
 
-    def create_zone(self, dto: ZoneCreateDTO):
+    async def list(self, camera_id: str):
+        return zone_repo.get_by_camera(camera_id)
 
-        zone = Zone(
-            name=dto.name,
-            coordinates=dto.coordinates,
-            max_people_allowed=dto.max_people_allowed
-        )
+    async def update(self, zone_id: int, data):
+        return zone_repo.update(zone_id, data)
 
-        self.zone_repo.save(zone)
-
-        return zone
-
-    def update_zone(self, zone_id, dto: ZoneUpdateDTO):
-
-        zone = self.zone_repo.get_by_id(zone_id)
-
-        if dto.name:
-            zone.name = dto.name
-
-        if dto.coordinates:
-            zone.coordinates = dto.coordinates
-
-        if dto.max_people_allowed:
-            zone.max_people_allowed = dto.max_people_allowed
-
-        self.zone_repo.update(zone)
-
-        return zone
-
-    def delete_zone(self, zone_id):
-
-        self.zone_repo.delete(zone_id)
+    async def delete(self, zone_id: int):
+        return zone_repo.delete(zone_id)
