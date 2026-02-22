@@ -25,6 +25,8 @@ from core.websocket import ws_manager
 from core.server_info import get_server_addresses
 from core.startup import create_default_admin
 
+from streaming.ai_worker import ai_worker
+import asyncio
 
 # GLOBAL READY FLAG
 app_ready = False
@@ -43,6 +45,8 @@ async def lifespan(app: FastAPI):
 
     create_default_admin()
     print("Default admin checked!")
+
+    asyncio.create_task(ai_worker())
 
     try:
         ips = get_server_addresses()

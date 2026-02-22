@@ -1,39 +1,22 @@
-from domain.repositories.event_repo import EventRepository
-from domain.repositories.zone_repo import ZoneRepository
-from application.services.risk_service import RiskService
-from domain.entities.event import SecurityEvent
-from application.dto.ai_event_dto import AIEventDTO
+from infrastructure.repositories.event_repo_impl import EventRepositoryImpl
+from domain.enums.risk_enum import RiskEnum
+
+repo = EventRepositoryImpl()
 
 
 class EventService:
 
-    def __init__(
-        self,
-        event_repo: EventRepository,
-        zone_repo: ZoneRepository,
-        risk_service: RiskService
-    ):
-        self.event_repo = event_repo
-        self.zone_repo = zone_repo
-        self.risk_service = risk_service
+    async def create_event(self, camera_id, persons, risk):
 
-    def process_ai_event(self, dto: AIEventDTO):
+        if risk < 30:
+            risk_level = RiskEnum.LOW
+        elif risk < 70:
+            risk_level = RiskEnum.MEDIUM
+        else:
+            risk_level = RiskEnum.HIGH
 
-        zone = self.zone_repo.get_by_id(dto.zone_id)
-
-        risk = self.risk_service.evaluate(
-            persons=dto.persons_detected,
-            zone_limit=zone.max_people_allowed
+        return repo.create(
+            camera_id=camera_id,
+            persons=persons,
+            risk=risk_level
         )
-
-        event = SecurityEvent(
-            camera_id=dto.camera_id,
-            persons=dto.persons_detected,
-            zone_id=dto.zone_id,
-            timestamp=dto.timestamp,
-            risk=risk
-        )
-
-        self.event_repo.save(event)
-
-        return event

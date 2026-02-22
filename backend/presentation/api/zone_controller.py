@@ -1,76 +1,33 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, HTTPException
 from application.services.zone_service import ZoneService
 from application.dto.zone_dto import ZoneCreateDTO, ZoneUpdateDTO
-from infrastructure.repositories.zone_repo_impl import ZoneRepositoryImpl
-
 
 router = APIRouter(prefix="/zones", tags=["Zones"])
 
-
-def get_zone_service():
-
-    return ZoneService(
-        zone_repo=ZoneRepositoryImpl()
-    )
+service = ZoneService()
 
 
 @router.post("/")
-def create_zone(
-    dto: ZoneCreateDTO,
-    service: ZoneService = Depends(get_zone_service)
-):
-
-    zone = service.create_zone(dto)
-
-    return {
-        "id": str(zone.id),
-        "name": zone.name,
-        "coordinates": zone.coordinates,
-        "max_people_allowed": zone.max_people_allowed
-    }
+async def create_zone(dto: ZoneCreateDTO):
+    return await service.create(dto)
 
 
-@router.get("/")
-def get_zones():
-
-    repo = ZoneRepositoryImpl()
-
-    zones = repo.get_all()
-
-    return [
-        {
-            "id": str(z.id),
-            "name": z.name,
-            "coordinates": z.coordinates,
-            "max_people_allowed": z.max_people_allowed
-        }
-        for z in zones
-    ]
+@router.get("/{camera_id}")
+async def get_zones(camera_id: str):
+    return await service.list(camera_id)
 
 
 @router.put("/{zone_id}")
-def update_zone(
-    zone_id: str,
-    dto: ZoneUpdateDTO,
-    service: ZoneService = Depends(get_zone_service)
-):
-
-    zone = service.update_zone(zone_id, dto)
-
-    return {
-        "id": str(zone.id),
-        "name": zone.name,
-        "coordinates": zone.coordinates,
-        "max_people_allowed": zone.max_people_allowed
-    }
+async def update_zone(zone_id: int, dto: ZoneUpdateDTO):
+    result = await service.update(zone_id, dto)
+    if not result:
+        raise HTTPException(status_code=404)
+    return result
 
 
 @router.delete("/{zone_id}")
-def delete_zone(
-    zone_id: str,
-    service: ZoneService = Depends(get_zone_service)
-):
-
-    service.delete_zone(zone_id)
-
-    return {"status": "deleted"}
+async def delete_zone(zone_id: int):
+    result = await service.delete(zone_id)
+    if not result:
+        raise HTTPException(status_code=404)
+    return {"deleted": True}

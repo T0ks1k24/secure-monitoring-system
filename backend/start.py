@@ -4,7 +4,6 @@ import subprocess
 
 
 def wait_for_postgres():
-
     print("Waiting for PostgreSQL...")
 
     while True:
@@ -14,7 +13,7 @@ def wait_for_postgres():
             s.close()
             print("PostgreSQL READY")
             break
-        except:
+        except Exception:
             time.sleep(2)
 
 
