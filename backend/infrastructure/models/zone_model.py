@@ -14,3 +14,5 @@ class ZoneModel(Base):
     zone_type = Column(String, nullable=False)
     risk_weight = Column(Float, default=30.0)
     is_active = Column(Integer, default=1)
+
+    max_people_allowed = Column(Integer, nullable=False)
