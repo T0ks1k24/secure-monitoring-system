@@ -207,7 +207,7 @@ export default function Monitoring(){
                                         body: JSON.stringify({
                                             name: `Zone ${zones.length + 1}`,
                                             camera_id: cameraId,
-                                            polygon: currentZone,
+                                            polygon: currentZone.map(([x, y]) => [Math.round(x), Math.round(y)]),
                                             zone_type: "danger",
                                             risk_weight: 40,
                                             is_active: true,

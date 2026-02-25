@@ -11,9 +11,11 @@ class ZoneRepositoryImpl:
         zone = ZoneModel(
             name=data.name,
             camera_id=data.camera_id,
-            polygon=[p.dict() for p in data.polygon],
+            polygon=data.polygon,
             zone_type=data.zone_type,
             risk_weight=data.risk_weight,
+            is_active=data.is_active,
+            max_people_allowed=data.max_people_allowed
         )
 
         db.add(zone)
@@ -41,7 +43,7 @@ class ZoneRepositoryImpl:
             return None
 
         zone.name = data.name
-        zone.polygon = [p.dict() for p in data.polygon]
+        zone.polygon = data.polygon
         zone.zone_type = data.zone_type
         zone.risk_weight = data.risk_weight
 
