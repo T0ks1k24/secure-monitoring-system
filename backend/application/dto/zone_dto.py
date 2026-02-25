@@ -1,25 +1,32 @@
-from pydantic import BaseModel
-from uuid import UUID
+from pydantic import BaseModel, ConfigDict
 from typing import List
 
 
-class ZoneCreateDTO(BaseModel):
-
+class ZoneBaseDTO(BaseModel):
     name: str
-    coordinates: List[List[int]]
+    camera_id: str
+    polygon: List[List[int]]
+    zone_type: str
+    risk_weight: float
+    is_active: bool
     max_people_allowed: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ZoneCreateDTO(ZoneBaseDTO):
+    pass
 
 
 class ZoneUpdateDTO(BaseModel):
-
     name: str | None = None
-    coordinates: List[List[int]] | None = None
+    camera_id: str | None = None
+    polygon: List[List[int]] | None = None
+    zone_type: str | None = None
+    risk_weight: float | None = None
+    is_active: bool | None = None
     max_people_allowed: int | None = None
 
 
-class ZoneResponseDTO(BaseModel):
-
-    id: UUID
-    name: str
-    coordinates: List[List[int]]
-    max_people_allowed: int
+class ZoneResponseDTO(ZoneBaseDTO):
+    id: int
