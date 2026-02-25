@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import socket
 
@@ -80,6 +81,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"], 
+    allow_headers=["*"],
+)
 
 # INCLUDE ROUTERS
 app.include_router(ai_router)

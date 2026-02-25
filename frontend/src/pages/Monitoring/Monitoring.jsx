@@ -2,15 +2,24 @@ import { useRef, useEffect, useState } from "react"
 import { useParams } from "react-router-dom";
 import "./Monitoring.scss"
 
+import cam1Video from "../../../cameras/cam1.mp4";
+import cam2Video from "../../../cameras/cam2.mp4";
+
+const videoMap = {
+    "1": cam1Video,
+    "2": cam2Video
+};
+
 export default function Monitoring(){
 
     const canvasRef = useRef(null);
-    const imgRef = useRef(null);
+    const videoRef = useRef(null);
     const {cameraId} = useParams();
 
     const [mode, setMode] = useState("view");
     const [zones, setZones] = useState([]);
     const [currentZone, setCurrentZone] = useState([]);
+    const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
     const loadZones = async () => {
         const res = await fetch(`http://127.0.0.1:8000/zones/${cameraId}`);
@@ -19,35 +28,39 @@ export default function Monitoring(){
         const mapped = data.map(zone => ({
             id: zone.id,
             name: zone.name,
-            points: zone.polygon
+            type: zone.zone_type,
+            points: zone.polygon || []
         }));
 
         setZones(mapped);
     };
 
+    useEffect(() => {
+        loadZones();
+    }, [cameraId]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
-        const img = imgRef.current;
+        const video = videoRef.current;
 
-        if (!canvas || !img) return;
+        if (!canvas || !video) return;
 
         const resizeCanvas = () => {
-            canvas.width = img.clientWidth;
-            canvas.height = img.clientHeight;
-            loadZones();
+            canvas.width = video.clientWidth;
+            canvas.height = video.clientHeight;
+            setCanvasSize({ width: canvas.width, height: canvas.height });
         };
 
-        if (img.complete) {
+        if (video.readyState >= 1) { 
             resizeCanvas();
         } else {
-            img.onload = resizeCanvas;
+            video.onloadedmetadata = resizeCanvas;
         }
 
         window.addEventListener("resize", resizeCanvas);
 
         return () => window.removeEventListener("resize", resizeCanvas);
-    }, []);
+    }, [cameraId]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -110,7 +123,7 @@ export default function Monitoring(){
             });
         }
 
-    }, [zones, currentZone]);
+    }, [zones, currentZone, canvasSize]);
 
     const handleCanvasClick = (e) => {
         if (mode !== "draw") return;
@@ -137,13 +150,16 @@ export default function Monitoring(){
             </div>
 
             <div className="container">
-                {/* VIDEO */}
                 <div className="video-wrapper">
                     <div className="video-inner">
-                        <img
-                            ref={imgRef}
-                            src={`http://127.0.0.1:8000/video/stream/${cameraId}`}
-                            alt="Video stream"
+                        <video
+                            ref={videoRef}
+                            src={videoMap[cameraId]}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            style={{ width: "100%", height: "auto", display: "block" }}
                         />
                         <canvas
                             ref={canvasRef}
@@ -183,18 +199,20 @@ export default function Monitoring(){
                                 onClick={async () => {
                                     if (currentZone.length < 3) return;
 
-                                    const newZone = {
-                                        name: `Zone ${zones.length + 1}`,
-                                        polygon: currentZone,
-                                        forbidden_classes: ["person"]
-                                    };
-
-                                    await fetch(`http://127.0.0.1:8000/zones/${cameraId}`, {
+                                    await fetch("http://127.0.0.1:8000/zones/", {
                                         method: "POST",
                                         headers: {
                                             "Content-Type": "application/json"
                                         },
-                                        body: JSON.stringify(newZone)
+                                        body: JSON.stringify({
+                                            name: `Zone ${zones.length + 1}`,
+                                            camera_id: cameraId,
+                                            polygon: currentZone,
+                                            zone_type: "danger",
+                                            risk_weight: 40,
+                                            is_active: true,
+                                            max_people_allowed: 0
+                                        })
                                     });
 
                                     setCurrentZone([]);

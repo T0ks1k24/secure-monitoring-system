@@ -15,6 +15,8 @@ function createWindow(){
         }
     });
 
+    mainWindow.maximize();
+
     Menu.setApplicationMenu(null)
     mainWindow.loadURL("http://localhost:5173/");
 }
