@@ -18,7 +18,7 @@ export default function Monitoring() {
     const [mode, setMode] = useState("view");
     const [zones, setZones] = useState([]);
     const [currentZone, setCurrentZone] = useState([]);
-
+    
     const [isZoneMenuOpen, setIsZoneMenuOpen] = useState(false);
 
     const [zoneForm, setZoneForm] = useState({
@@ -29,6 +29,7 @@ export default function Monitoring() {
     });
 
     const [selectedZoneId, setSelectedZoneId] = useState(null);
+    const [editingZoneId, setEditingZoneId] = useState(null);
 
     const resetZoneForm = () => {
         setZoneForm({
@@ -41,6 +42,7 @@ export default function Monitoring() {
 
     const resetDrawState = () => {
         setMode("view");
+        setEditingZoneId(null);
         setCurrentZone([]);
         resetZoneForm();
     };
@@ -56,6 +58,7 @@ export default function Monitoring() {
                 name: zone.name,
                 type: zone.zone_type,
                 risk_weight: zone.risk_weight,
+                max_people_allowed: zone.max_people_allowed,
                 points: zone.polygon || []
             }));
 
@@ -82,6 +85,45 @@ export default function Monitoring() {
         } catch (error) {
             console.error("Помилка видалення:", error);
             setSelectedZoneId(null);
+        }
+    };
+
+    const handleSaveZone = async () => {
+        const isEdit = mode === "edit";
+        
+        if (!isEdit && currentZone.length < 3) return;
+
+        const url = isEdit 
+            ? `http://127.0.0.1:8000/zones/${editingZoneId}` 
+            : "http://127.0.0.1:8000/zones/";
+        
+        const method = isEdit ? "PUT" : "POST";
+
+        const existingZone = isEdit ? zones.find(z => z.id === editingZoneId) : null;
+
+        const payload = {
+            name: zoneForm.name || `Zone ${zones.length + 1}`,
+            camera_id: cameraId,
+            polygon: isEdit ? existingZone.points : currentZone.map(([x, y]) => [Math.round(x), Math.round(y)]),
+            zone_type: zoneForm.zone_type || "danger",
+            risk_weight: Number(zoneForm.risk_weight || 40),
+            max_people_allowed: Number(zoneForm.max_people_allowed || 0),
+            is_active: true
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                resetDrawState();
+                loadZones();
+            }
+        } catch (error) {
+            console.error("Помилка збереження:", error);
         }
     };
 
@@ -131,42 +173,34 @@ export default function Monitoring() {
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        ctx.lineWidth = 2;
 
         zones.forEach(zone => {
             if (!zone.points || zone.points.length < 2) return;
 
-            let color;
+            if (mode === "edit") {
+                ctx.globalAlpha = zone.id === editingZoneId ? 1.0 : 0.4;
+                ctx.lineWidth = zone.id === editingZoneId ? 4 : 2;
+            } else {
+                ctx.globalAlpha = 1.0;
+                ctx.lineWidth = 2;
+            }
 
+            let color;
             switch (zone.type) {
-                case "danger":
-                    color = "red";
-                    break;
-                case "warning":
-                    color = "yellow";
-                    break;
-                case "safe":
-                    color = "limegreen";
-                    break;
-                default:
-                    color = "gray";
+                case "danger": color = "red"; break;
+                case "warning": color = "yellow"; break;
+                case "safe": color = "limegreen"; break;
+                default: color = "gray";
             }
 
             ctx.beginPath();
             ctx.moveTo(zone.points[0][0], zone.points[0][1]);
-
             for (let i = 1; i < zone.points.length; i++) {
                 ctx.lineTo(zone.points[i][0], zone.points[i][1]);
             }
-
-            if (zone.points.length > 2) {
-                ctx.closePath();
-            }
-
+            if (zone.points.length > 2) ctx.closePath();
             ctx.strokeStyle = color;
             ctx.stroke();
 
@@ -179,7 +213,6 @@ export default function Monitoring() {
 
             if (isZoneMenuOpen) {
                 const center = getCenterOfPolygon(zone.points);
-
                 ctx.font = "bold 16px sans-serif";
                 ctx.fillStyle = "white";
                 ctx.textAlign = "center";
@@ -188,30 +221,25 @@ export default function Monitoring() {
                 ctx.shadowBlur = 4;
                 ctx.shadowOffsetX = 1;
                 ctx.shadowOffsetY = 1;
-                
                 ctx.fillText(zone.name, center.x, center.y);
-                
                 ctx.shadowBlur = 0;
                 ctx.shadowOffsetX = 0;
                 ctx.shadowOffsetY = 0;
             }
         });
 
+        ctx.globalAlpha = 1.0;
+
         if (currentZone.length > 0) {
             ctx.beginPath();
             ctx.moveTo(currentZone[0][0], currentZone[0][1]);
-
             for (let i = 1; i < currentZone.length; i++) {
                 ctx.lineTo(currentZone[i][0], currentZone[i][1]);
             }
-
-            if (currentZone.length > 2) {
-                ctx.closePath();
-            }
-
+            if (currentZone.length > 2) ctx.closePath();
             ctx.strokeStyle = "red";
+            ctx.lineWidth = 2;
             ctx.stroke();
-
             currentZone.forEach(([x, y]) => {
                 ctx.beginPath();
                 ctx.arc(x, y, 5, 0, Math.PI * 2);
@@ -219,8 +247,7 @@ export default function Monitoring() {
                 ctx.fill();
             });
         }
-
-    }, [zones, currentZone, isZoneMenuOpen]);
+    }, [zones, currentZone, isZoneMenuOpen, mode, editingZoneId]);
 
     const handleCanvasClick = (e) => {
         if (mode !== "draw") return;
@@ -258,7 +285,6 @@ export default function Monitoring() {
                     </div>
                 </div>
 
-                {/* CONTROL PANEL */}
                 <div className="control-panel">
                     <h2>Керування</h2>
 
@@ -291,7 +317,7 @@ export default function Monitoring() {
                                 </button>
                             )}
 
-                            {mode === "draw" && (
+                            {(mode === "draw" || mode === "edit") && (
                                 <div className="draw-actions">
 
                                     <div className="zone-form">
@@ -347,42 +373,11 @@ export default function Monitoring() {
 
                                     </div>
 
-                                    <button
-                                        className="zone-btn"
-                                        onClick={async () => {
-                                            if (currentZone.length < 3) return;
-
-                                            const payload = {
-                                                name: zoneForm.name || `Zone ${zones.length + 1}`,
-                                                camera_id: cameraId,
-                                                polygon: currentZone.map(([x, y]) => [Math.round(x), Math.round(y)]),
-                                                zone_type: zoneForm.zone_type || "danger",
-                                                risk_weight: Number(zoneForm.risk_weight || 40),
-                                                max_people_allowed: Number(zoneForm.max_people_allowed || 0),
-                                                is_active: true
-                                            };
-
-                                            const response = await fetch("http://127.0.0.1:8000/zones/", {
-                                                method: "POST",
-                                                headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify(payload)
-                                            });
-
-                                            if (response.ok) {
-                                                resetDrawState();
-                                                loadZones();
-                                            }
-                                        }}
-                                    >
-                                        Зберегти
+                                    <button className="zone-btn" onClick={handleSaveZone}>
+                                        {mode === "edit" ? "Зберегти зміни" : "Зберегти"}
                                     </button>
 
-                                    <button
-                                        className="zone-btn"
-                                        onClick={() => {
-                                            resetDrawState();
-                                        }}
-                                    >
+                                    <button className="zone-btn" onClick={resetDrawState}>
                                         Скасувати
                                     </button>
                                 </div>
@@ -398,7 +393,19 @@ export default function Monitoring() {
                                                     <span className="zone-risk">Ризик: {zone.risk_weight || 40}</span>
                                                 </div>
                                                 <div className="zone-actions">
-                                                    <button className="edit-btn">
+                                                    <button 
+                                                        className="edit-btn"
+                                                        onClick={() => {
+                                                            setMode("edit");
+                                                            setEditingZoneId(zone.id);
+                                                            setZoneForm({
+                                                                name: zone.name,
+                                                                zone_type: zone.type,
+                                                                risk_weight: String(zone.risk_weight),
+                                                                max_people_allowed: String(zone.max_people_allowed || 0)
+                                                            });
+                                                        }}
+                                                    >
                                                         ✎ Редаг.
                                                     </button>
                                                     <button 
@@ -416,13 +423,10 @@ export default function Monitoring() {
                         </div>
                     )}
 
-                    {/* БЛОК ПОДІЙ показуємо, тільки якщо меню зон закрите */}
                     {!isZoneMenuOpen && (
                         <div className="events-block" style={{ marginTop: "20px" }}>
                             <h3>Події</h3>
-                            <ul id="events">
-                                {/* сюди пізніше підключимо SSE */}
-                            </ul>
+                            <ul id="events"></ul>
                         </div>
                     )}
 
