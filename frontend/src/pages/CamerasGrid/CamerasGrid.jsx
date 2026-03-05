@@ -14,10 +14,7 @@ export default function CamerasGrid() {
 
   return (
     <div className="cameras-page">
-      <div className="top-bar">
-        <h1>Камери</h1>
-      </div>
-
+      
       <div className="grid">
         {cameras.map((cam) => (
           <div
