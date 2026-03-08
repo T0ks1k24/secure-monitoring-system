@@ -1,7 +1,12 @@
 import { useRef, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import "./Monitoring.scss";
-
+import { 
+    useGetZonesQuery, 
+    useAddZoneMutation, 
+    useUpdateZoneMutation, 
+    useDeleteZoneMutation 
+} from "../../services/zonesApi"; 
 import cam1Video from "../../../cameras/cam1.mp4";
 import cam2Video from "../../../cameras/cam2.mp4";
 
@@ -15,10 +20,15 @@ export default function Monitoring() {
     const videoRef = useRef(null);
     const { cameraId } = useParams();
 
+    const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+
+    const { data: zones = [], isLoading } = useGetZonesQuery(cameraId);
+    const [addZone] = useAddZoneMutation();
+    const [updateZone] = useUpdateZoneMutation();
+    const [deleteZone] = useDeleteZoneMutation();
+
     const [mode, setMode] = useState("view");
-    const [zones, setZones] = useState([]);
     const [currentZone, setCurrentZone] = useState([]);
-    
     const [isZoneMenuOpen, setIsZoneMenuOpen] = useState(false);
 
     const [zoneForm, setZoneForm] = useState({
@@ -47,41 +57,12 @@ export default function Monitoring() {
         resetZoneForm();
     };
 
-    const loadZones = async () => {
-        try {
-            const res = await fetch(`http://127.0.0.1:8000/zones/${cameraId}`);
-            if (!res.ok) throw new Error("Fetch failed");
-            const data = await res.json();
-
-            const mapped = data.map(zone => ({
-                id: zone.id,
-                name: zone.name,
-                type: zone.zone_type,
-                risk_weight: zone.risk_weight,
-                max_people_allowed: zone.max_people_allowed,
-                points: zone.polygon || []
-            }));
-
-            setZones(mapped);
-        } catch (error) {
-            console.error("Помилка завантаження:", error);
-        }
-    };
-
     const handleDeleteZone = async () => {
         if (selectedZoneId === null) return;
-        
         try {
-            const response = await fetch(`http://127.0.0.1:8000/zones/${selectedZoneId}`, {
-                method: "DELETE"
-            });
-
-            if (response.ok) {
-                resetDrawState();
-                await loadZones();
-            }
-
+            await deleteZone(selectedZoneId).unwrap();
             setSelectedZoneId(null);
+            resetDrawState(); 
         } catch (error) {
             console.error("Помилка видалення:", error);
             setSelectedZoneId(null);
@@ -90,21 +71,16 @@ export default function Monitoring() {
 
     const handleSaveZone = async () => {
         const isEdit = mode === "edit";
-        
         if (!isEdit && currentZone.length < 3) return;
-
-        const url = isEdit 
-            ? `http://127.0.0.1:8000/zones/${editingZoneId}` 
-            : "http://127.0.0.1:8000/zones/";
-        
-        const method = isEdit ? "PUT" : "POST";
 
         const existingZone = isEdit ? zones.find(z => z.id === editingZoneId) : null;
 
         const payload = {
             name: zoneForm.name || `Zone ${zones.length + 1}`,
             camera_id: cameraId,
-            polygon: isEdit ? existingZone.points : currentZone.map(([x, y]) => [Math.round(x), Math.round(y)]),
+            polygon: isEdit 
+                ? existingZone.points.map(([x,y]) => [Math.round(x), Math.round(y)]) 
+                : currentZone.map(([x, y]) => [Math.round(x), Math.round(y)]),
             zone_type: zoneForm.zone_type || "danger",
             risk_weight: Number(zoneForm.risk_weight || 40),
             max_people_allowed: Number(zoneForm.max_people_allowed || 0),
@@ -112,44 +88,33 @@ export default function Monitoring() {
         };
 
         try {
-            const response = await fetch(url, {
-                method: method,
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                resetDrawState();
-                loadZones();
+            if (isEdit) {
+                await updateZone({ id: editingZoneId, ...payload }).unwrap();
+            } else {
+                await addZone(payload).unwrap();
             }
+            resetDrawState();
         } catch (error) {
             console.error("Помилка збереження:", error);
         }
     };
 
     useEffect(() => {
-        loadZones();
-    }, [cameraId]);
-
-    useEffect(() => {
         const canvas = canvasRef.current;
         const video = videoRef.current;
-
         if (!canvas || !video) return;
 
         const resizeCanvas = () => {
             const newWidth = video.clientWidth;
             const newHeight = video.clientHeight;
-
             if (!newWidth || !newHeight) return;
-
             canvas.width = newWidth;
             canvas.height = newHeight;
+            setCanvasSize({ width: newWidth, height: newHeight });
         };
 
         video.addEventListener("loadedmetadata", resizeCanvas);
         window.addEventListener("resize", resizeCanvas);
-
         resizeCanvas();
 
         return () => {
@@ -160,14 +125,9 @@ export default function Monitoring() {
 
     const getCenterOfPolygon = (points) => {
         if (!points || points.length === 0) return { x: 0, y: 0 };
-
         const sumX = points.reduce((acc, point) => acc + point[0], 0);
         const sumY = points.reduce((acc, point) => acc + point[1], 0);
-
-        return {
-            x: sumX / points.length,
-            y: sumY / points.length
-        };
+        return { x: sumX / points.length, y: sumY / points.length };
     };
 
     useEffect(() => {
@@ -247,17 +207,14 @@ export default function Monitoring() {
                 ctx.fill();
             });
         }
-    }, [zones, currentZone, isZoneMenuOpen, mode, editingZoneId]);
+    }, [zones, currentZone, isZoneMenuOpen, mode, editingZoneId, canvasSize]);
 
     const handleCanvasClick = (e) => {
         if (mode !== "draw") return;
-
         const canvas = canvasRef.current;
         const rect = canvas.getBoundingClientRect();
-
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-
         setCurrentZone(prev => [...prev, [x, y]]);
     };
 
@@ -287,23 +244,18 @@ export default function Monitoring() {
 
                 <div className="control-panel">
                     <h2>Керування</h2>
-
-                    <button className="start-btn">
-                        Почати моніторинг
-                    </button>
+                    <button className="start-btn">Почати моніторинг</button>
 
                     <button 
                         className="zone-btn"
-                        onClick={() => {
-                            setIsZoneMenuOpen(prev => !prev);
-                        }}
+                        onClick={() => setIsZoneMenuOpen(prev => !prev)}
                         style={{ marginTop: "15px", backgroundColor: isZoneMenuOpen ? "#475569" : "" }}
                     >
                         {isZoneMenuOpen ? "Сховати зони" : "Управління зонами"}
                     </button>
+
                     {isZoneMenuOpen && (
                         <div className="zones-manager" style={{ marginTop: "20px" }}>
-                            
                             {mode === "view" && (
                                 <button
                                     className="zone-btn"
@@ -319,58 +271,43 @@ export default function Monitoring() {
 
                             {(mode === "draw" || mode === "edit") && (
                                 <div className="draw-actions">
-
                                     <div className="zone-form">
-
                                         <input
                                             type="text"
                                             placeholder="Назва зони"
                                             value={zoneForm.name}
-                                            onChange={(e) =>
-                                                setZoneForm({ ...zoneForm, name: e.target.value })
-                                            }
+                                            onChange={(e) => setZoneForm({ ...zoneForm, name: e.target.value })}
                                         />
-
                                         <select
                                             value={zoneForm.zone_type}
-                                            onChange={(e) =>
-                                                setZoneForm({ ...zoneForm, zone_type: e.target.value })
-                                            }
+                                            onChange={(e) => setZoneForm({ ...zoneForm, zone_type: e.target.value })}
                                         >
                                             <option value="danger">Danger</option>
                                             <option value="warning">Warning</option>
                                             <option value="safe">Safe</option>
                                         </select>
-
                                         <input
                                             type="text"
-                                            min="0"
-                                            max="100"
                                             placeholder="Risk level (0-100)"
                                             value={zoneForm.risk_weight}
                                             onChange={(e) => {
                                                 const value = e.target.value;
-
                                                 if (value === "" || (/^\d+$/.test(value) && Number(value) <= 100)) {
                                                     setZoneForm({ ...zoneForm, risk_weight: value });
                                                 }
                                             }}
                                         />
-
                                         <input
                                             type="text"
-                                            min="0"
                                             placeholder="Max people"
                                             value={zoneForm.max_people_allowed}
                                             onChange={(e) => {
                                                 const value = e.target.value;
-
                                                 if (value === "" || /^\d+$/.test(value)) {
                                                     setZoneForm({ ...zoneForm, max_people_allowed: value });
                                                 }
                                             }}
                                         />
-
                                     </div>
 
                                     <button className="zone-btn" onClick={handleSaveZone}>
@@ -382,6 +319,7 @@ export default function Monitoring() {
                                     </button>
                                 </div>
                             )}
+
                             {mode === "view" && zones.length > 0 && (
                                 <div className="zones-list">
                                     <h3>Існуючі зони:</h3>
@@ -429,22 +367,15 @@ export default function Monitoring() {
                             <ul id="events"></ul>
                         </div>
                     )}
-
                 </div>
             </div>
             {selectedZoneId !== null && (
                 <div className="modal-overlay">
                     <div className="modal-box">
                         <p>Ви впевнені що хочете видалити цю зону?</p>
-
                         <div className="modal-actions">
-                            <button className="delete-btn" onClick={handleDeleteZone}>
-                                Так, видалити
-                            </button>
-
-                            <button className="zone-btn" onClick={() => setSelectedZoneId(null)}>
-                                Скасувати
-                            </button>
+                            <button className="delete-btn" onClick={handleDeleteZone}>Так, видалити</button>
+                            <button className="zone-btn" onClick={() => setSelectedZoneId(null)}>Скасувати</button>
                         </div>
                     </div>
                 </div>
