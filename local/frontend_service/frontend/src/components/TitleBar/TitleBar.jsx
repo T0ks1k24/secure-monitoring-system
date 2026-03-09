@@ -4,11 +4,18 @@ import "./TitleBar.scss"
 export default function TitleBar() {
   const navigate = useNavigate();
 
+  const openNewWindow = () => {
+    window.open(window.location.origin, "_blank", "width=1200,height=800");
+  };
+
   return (
     <div id="titlebar">
       <div className="nav-buttons">
         <button onClick={() => navigate(-1)}>🡐</button>
         <button onClick={() => navigate(1)}>🡒</button>
+        <button className="popout-main-btn" onClick={openNewWindow} title="Відкрити нове робоче вікно">
+          ❐
+        </button>
       </div>
 
       <div className="title">Security System</div>
