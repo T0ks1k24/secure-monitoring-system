@@ -1,0 +1,11 @@
+venv/
+.venv/
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+.local
+.git
+node_modules/
+frontend/

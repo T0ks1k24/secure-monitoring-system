@@ -1,0 +1,23 @@
+{
+  "global": {
+    "ai_service_url": "http://localhost:5000/detect",
+    "ai_timeout": 5,
+    "default_fps": 2.0,
+    "default_resize_width": 1280,
+    "default_jpeg_quality": 95,
+    "default_reconnect_delay": 3,
+    "ws_host": "0.0.0.0",
+    "ws_port": 8765
+  },
+  "cameras": [
+    {
+      "id": "camera1",
+      "rtsp": "rtsp://127.0.0.1:8554/camera1",
+      "name": "Вхід головний",
+      "fps": 2,
+      "resize_width": 1280,
+      "jpeg_quality": 95,
+      "enabled": true                    
+    }
+  ]
+}
