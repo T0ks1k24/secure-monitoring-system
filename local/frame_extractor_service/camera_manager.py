@@ -8,7 +8,6 @@ from typing import Optional, Dict, List
 from config import settings
 from schemas import (
     CameraConfig,
-    CameraStatus,
     CameraStatusResponse,
     CameraCreateRequest,
     CameraUpdateRequest,
@@ -38,7 +37,6 @@ class CameraManager:
     # ──────────────────────────────────────────────
 
     async def startup(self) -> None:
-        """Викликається при старті FastAPI: завантажує та запускає камери."""
         cameras = self._load_cameras_from_file()
         for cam_cfg in cameras:
             self._create_worker(cam_cfg)
@@ -47,7 +45,6 @@ class CameraManager:
         logger.info(f"CameraManager started: {len(cameras)} cameras loaded")
 
     async def shutdown(self) -> None:
-        """Зупиняє всі воркери при вимкненні сервісу."""
         for worker in self._workers.values():
             await worker.stop()
         logger.info("CameraManager stopped")
@@ -74,15 +71,20 @@ class CameraManager:
         worker = self._get_or_raise(camera_id)
         update = req.model_dump(exclude_none=True)
 
-        # Оновлюємо поля конфігу
+        # Оновлюємо поля конфігу (крім motion — обробляємо окремо)
         for key, val in update.items():
-            setattr(worker.config, key, val)
+            if key != "motion":
+                setattr(worker.config, key, val)
 
-        # Оновлюємо runtime-параметри воркера без рестарту
+        # FIX BUG 2: передаємо motion_schema в update_params
+        if req.motion is not None:
+            worker.config.motion = req.motion
+
         worker.update_params(
             fps=update.get("fps"),
             resize_width=update.get("resize_width"),
             jpeg_quality=update.get("jpeg_quality"),
+            motion_schema=req.motion,  # None якщо не передано — worker ігнорує
         )
 
         self._save_cameras_to_file()
@@ -90,7 +92,6 @@ class CameraManager:
         return self._to_response(worker)
 
     async def remove_camera(self, camera_id: str) -> None:
-        """Зупиняє та видаляє камеру. async бо треба await worker.stop()."""
         worker = self._get_or_raise(camera_id)
         await worker.stop()
         del self._workers[camera_id]
@@ -98,7 +99,7 @@ class CameraManager:
         logger.info(f"Camera removed: {camera_id}")
 
     # ──────────────────────────────────────────────
-    # Start / Stop окремих камер
+    # Start / Stop
     # ──────────────────────────────────────────────
 
     def start_camera(self, camera_id: str) -> CameraStatusResponse:
@@ -126,7 +127,6 @@ class CameraManager:
         return self._to_response(self._get_or_raise(camera_id))
 
     def get_snapshot(self) -> dict:
-        """Повний стан сервісу — для фронтенду при першому підключенні."""
         return {
             "cameras": [c.model_dump() for c in self.get_all_cameras()],
             "config": {
@@ -150,7 +150,6 @@ class CameraManager:
         default_jpeg_quality: Optional[int] = None,
         default_reconnect_delay: Optional[int] = None,
     ) -> None:
-        # Оновлюємо settings через безпечний метод
         settings.update(
             AI_SERVICE_URL=ai_service_url,
             DEFAULT_FPS=default_fps,
@@ -158,8 +157,6 @@ class CameraManager:
             DEFAULT_JPEG_QUALITY=default_jpeg_quality,
             DEFAULT_RECONNECT_DELAY=default_reconnect_delay,
         )
-
-        # Якщо змінився URL AI — перестворюємо клієнт і прокидаємо в усі воркери
         if ai_service_url is not None:
             self._ai_client = AIClient(
                 endpoint=settings.AI_SERVICE_URL,
@@ -191,6 +188,8 @@ class CameraManager:
         return worker
 
     def _to_response(self, worker: CameraWorker) -> CameraStatusResponse:
+        # FIX BUG 1: додаємо всі поля що були відсутні
+        motion_stats = worker.get_motion_stats()
         return CameraStatusResponse(
             id=worker.camera_id,
             name=worker.config.name,
@@ -201,7 +200,11 @@ class CameraManager:
             jpeg_quality=worker.jpeg_quality,
             frames_sent=worker.stats.frames_sent,
             frames_failed=worker.stats.frames_failed,
+            frames_skipped=worker.stats.frames_skipped,
+            motion_events=motion_stats["total_motion_events"],
+            motion_active=motion_stats["motion_detected"],
             enabled=worker.config.enabled,
+            motion=worker.config.motion,
         )
 
     # ──────────────────────────────────────────────
@@ -231,5 +234,5 @@ class CameraManager:
             logger.error(f"Failed to save cameras config: {e}")
 
 
-# Singleton — один екземпляр на весь процес
+# Singleton
 camera_manager = CameraManager()
