@@ -31,6 +31,8 @@ export default function Monitoring() {
     const [currentZone, setCurrentZone] = useState([]);
     const [isZoneMenuOpen, setIsZoneMenuOpen] = useState(false);
 
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
+
     const [zoneForm, setZoneForm] = useState({
         name: "",
         zone_type: "danger",
@@ -220,7 +222,15 @@ export default function Monitoring() {
 
     return (
         <>
-            <div className="container">
+            <button 
+                className={`burger-menu ${isPanelOpen ? "open" : ""}`} 
+                onClick={() => setIsPanelOpen(!isPanelOpen)}
+                title={isPanelOpen ? "Сховати панель" : "Налаштування"}
+            >
+                {isPanelOpen ? "✕" : "☰"}
+            </button>
+
+            <div className={`container ${isPanelOpen ? "panel-open" : "panel-closed"}`}>
                 <div className="video-wrapper">
                     <div className="video-inner">
                         <video
@@ -242,7 +252,7 @@ export default function Monitoring() {
                     </div>
                 </div>
 
-                <div className="control-panel">
+                <aside className={`control-panel ${isPanelOpen ? "visible" : "hidden"}`}>
                     <h2>Керування</h2>
                     <button className="start-btn">Почати моніторинг</button>
 
@@ -367,7 +377,7 @@ export default function Monitoring() {
                             <ul id="events"></ul>
                         </div>
                     )}
-                </div>
+                </aside>
             </div>
             {selectedZoneId !== null && (
                 <div className="modal-overlay">
