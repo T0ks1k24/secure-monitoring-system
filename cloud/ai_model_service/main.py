@@ -1,65 +1,90 @@
-from fastapi import FastAPI, UploadFile, File, Form
-import cv2
-import numpy as np
-from ultralytics import YOLO
+"""
+AI Service — FastAPI застосунок.
+
+Запуск:
+  python main.py
+  або: uvicorn main:app --host 0.0.0.0 --port 5000
+"""
+import logging
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
+
 import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Security AI Model Service")
+from config.settings import settings
+from models.detector import detector
+from services.zone_manager import zone_manager
+from services.rabbitmq_service import rabbitmq_service
+from api.routes import router
 
-# Завантажуємо модель YOLOv8s (small) при старті сервера.
-# Вона автоматично завантажиться з інтернету при першому запуску.
-print("Loading YOLOv8 model...")
-model = YOLO("yolov8s.pt")
-print("Model loaded successfully!")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
-@app.post("/detect")
-async def detect_objects(
-    camera_id: str = Form(...),
-    image: UploadFile = File(...)
-):
-    # 1. Читаємо байти отриманого зображення
-    image_bytes = await image.read()
 
-    # 2. Конвертуємо байти в масив NumPy, а потім у формат OpenCV
-    nparr = np.frombuffer(image_bytes, np.uint8)
-    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    logger.info("=== AI Service starting ===")
 
-    if frame is None:
-        return {"error": "Invalid image format"}
+    # 1. Завантажуємо YOLO
+    detector.load()
 
-    # 3. Запускаємо детекцію (conf=0.5 означає, що беремо лише впевнені результати >= 50%)
-    results = model(frame, conf=0.5, verbose=False)
+    # 2. Запускаємо Zone Manager (HTTP клієнт)
+    await zone_manager.startup()
 
-    detections = []
+    # 3. Підключаємось до RabbitMQ
+    #    Встановлюємо callback: при zone update → інвалідуємо кеш
+    rabbitmq_service.set_zone_update_callback(zone_manager.invalidate)
+    await rabbitmq_service.connect()
 
-    # 4. Розбираємо результати від YOLO
-    for r in results:
-        boxes = r.boxes
-        for box in boxes:
-            # Витягуємо координати рамки [x1, y1, x2, y2]
-            x1, y1, x2, y2 = box.xyxy[0].tolist()
-            # Впевненість
-            conf = float(box.conf[0])
-            # Клас об'єкта (наприклад, 0 - людина, 2 - авто)
-            cls_id = int(box.cls[0])
-            cls_name = model.names[cls_id]
+    logger.info("=== AI Service ready ===")
+    yield
 
-            detections.append({
-                "class": cls_name,
-                "confidence": round(conf, 2),
-                "bbox": [round(x1), round(y1), round(x2), round(y2)]
-            })
+    # Graceful shutdown
+    logger.info("=== AI Service shutting down ===")
+    await rabbitmq_service.disconnect()
+    await zone_manager.shutdown()
+    logger.info("=== AI Service stopped ===")
 
-    # Виводимо лог у термінал для зручності відлагодження
-    detected_classes = [d['class'] for d in detections]
-    print(f"[{camera_id}] Found {len(detections)} objects: {detected_classes}")
 
-    # Повертаємо JSON відповідь
-    return {
-        "camera_id": camera_id,
-        "detections": detections
-    }
+app = FastAPI(
+    title="AI Service",
+    description=(
+        "Відеоаналітика з YOLO + трекінг + зонові правила + risk engine.\n\n"
+        "## Потік даних\n"
+        "1. `POST /detect` — приймає JPEG кадр від Frame Extractor\n"
+        "2. YOLO детектує об'єкти\n"
+        "3. Трекер присвоює track_id та будує траєкторію\n"
+        "4. Zone Manager завантажує зони з Backend (з кешуванням)\n"
+        "5. Risk Engine аналізує порушення правил\n"
+        "6. SecurityEvent публікується в RabbitMQ → DB, Alerts, Frontend\n\n"
+        "## Оновлення зон\n"
+        "При зміні зон на фронтенді — Backend публікує `zones.updated.{camera_id}` "
+        "в RabbitMQ. AI сервіс отримує і миттєво інвалідує кеш."
+    ),
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(router, prefix="/api/v1")
+
 
 if __name__ == "__main__":
-    # Запускаємо сервер на 5000 порту (як вказано у конфігу твого екстрактора)
-    uvicorn.run("main:app", host="0.0.0.0", port=5000, reload=True)
+    uvicorn.run(
+        "main:app",
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=False,
+    )

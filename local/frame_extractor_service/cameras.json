@@ -1,13 +1,13 @@
 {
   "cameras": [
     {
-      "id": "camera1",
+      "id": "entrance",
       "rtsp": "rtsp://127.0.0.1:8554/camera2",
-      "name": "Вхід головний",
-      "fps": 2,
-      "resize_width": 1280,
-      "jpeg_quality": 95,
+      "name": null,
       "enabled": true,
+      "fps": null,
+      "resize_width": null,
+      "jpeg_quality": null,
       "motion": {
         "enabled": true,
         "min_contour_area": 4000,
@@ -17,7 +17,29 @@
         "cooldown_seconds": 10.0,
         "blur_size": 21,
         "diff_threshold": 25,
-        "dilate_iterations": 2
+        "dilate_iterations": 2,
+        "background_update_alpha": 0.05
+      }
+    },
+    {
+      "id": "string",
+      "rtsp": "rtsp://127.0.0.1:8554/camera1",
+      "name": "Garage",
+      "enabled": true,
+      "fps": 0.1,
+      "resize_width": 0,
+      "jpeg_quality": 1,
+      "motion": {
+        "enabled": true,
+        "min_contour_area": 4000,
+        "min_total_area": 6000,
+        "min_solidity": 0.4,
+        "min_consecutive_frames": 2,
+        "cooldown_seconds": 10.0,
+        "blur_size": 21,
+        "diff_threshold": 25,
+        "dilate_iterations": 2,
+        "background_update_alpha": 0.05
       }
     }
   ]
