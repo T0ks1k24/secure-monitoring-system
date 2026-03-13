@@ -1,0 +1,16 @@
+[project]
+name = "frame-extractor-service"
+version = "2.0.0"
+description = "Локальний сервіс захоплення кадрів з RTSP камер"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "opencv-python-headless>=4.13.0.92",
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "httpx>=0.27.0",
+    "python-multipart>=0.0.9",
+]
+
