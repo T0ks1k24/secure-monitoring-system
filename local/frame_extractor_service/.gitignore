@@ -1,10 +1,12 @@
-# Python-generated files
 __pycache__/
-*.py[oc]
-build/
+*.pyc
+.env
+.venv/
+venv/
+uv.lock
+*.egg-info/
 dist/
-wheels/
-*.egg-info
-
-# Virtual environments
-.venv
+build/
+.pytest_cache/
+.coverage
+cameras.json
