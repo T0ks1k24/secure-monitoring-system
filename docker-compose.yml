@@ -50,6 +50,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    volumes:
+      - ./cloud/backend_service/backend:/app
     ports:
       - "8000:8000"
     environment:
@@ -66,6 +68,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+    volumes:
+      - ./cloud/ai_model_service:/app
     ports:
       - "5000:5000"
     environment:
@@ -81,6 +85,8 @@ services:
     restart: unless-stopped
     depends_on:
       - ai_service
+    volumes:
+      - ./local/frame_extractor_service:/app
     ports:
       - "8100:8100"
     environment:
