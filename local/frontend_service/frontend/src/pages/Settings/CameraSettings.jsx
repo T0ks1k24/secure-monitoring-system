@@ -1,17 +1,58 @@
-import { useGetCamerasQuery, useStartCameraMutation, useStopCameraMutation, useDeleteCameraMutation } from "../../services/camerasApi";
+import { useState } from "react";
+import {
+  useGetCamerasQuery,
+  useAddCameraMutation,
+  useUpdateCameraMutation,
+  useStartCameraMutation,
+  useStopCameraMutation,
+  useDeleteCameraMutation
+} from "../../services/camerasApi";
 import "./CameraSettings.scss";
+import AddCameraModal from "./AddCameraModal/AddCameraModal";
 
-export default function CameraSettings() {
+export default function CameraSettings() {  
   const { data: cameras = [], isLoading } = useGetCamerasQuery();
+  const [addCamera] = useAddCameraMutation();
+  const [updateCamera] = useUpdateCameraMutation();
   const [startCamera] = useStartCameraMutation();
   const [stopCamera] = useStopCameraMutation();
   const [deleteCamera] = useDeleteCameraMutation();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [cameraToEdit, setCameraToEdit] = useState(null);
+
+  const openModalForCreate = () => {
+    setCameraToEdit(null);
+    setIsModalOpen(true);
+  };
+
+  const openModalForEdit = (camera) => {
+    setCameraToEdit(camera); 
+    setIsModalOpen(true);
+  };
+
+  const handleSaveCamera = async (cameraData) => {
+    try {
+      if (cameraToEdit) {
+        await updateCamera({ id: cameraToEdit.id, ...cameraData }).unwrap();
+      } else {
+        await addCamera(cameraData).unwrap();
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      alert("Помилка: " + (error?.data?.detail || "Не вдалося зберегти зміни"));
+    }
+  };
+
+  if (isLoading) return <div className="loading">Завантаження...</div>;
 
   return (
     <div className="settings-container">
       <div className="header">
         <h2>Налаштування системних камер</h2>
-        <button className="add-btn">+ Додати камеру</button>
+        <button className="add-btn" onClick={openModalForCreate}>
+            + Додати камеру
+        </button>
       </div>
 
       <table className="settings-table">
@@ -44,13 +85,19 @@ export default function CameraSettings() {
                   <button onClick={() => startCamera(cam.id)} title="Запустити">▶</button> : 
                   <button onClick={() => stopCamera(cam.id)} title="Зупинити">⏹</button>
                 }
-                <button onClick={() => {}}>✎</button>
+                <button title="Редагувати" onClick={() => openModalForEdit(cam)}>✎</button>
                 <button className="delete" onClick={() => deleteCamera(cam.id)}>🗑</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      <AddCameraModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSave={handleSaveCamera} 
+        initialValues={cameraToEdit}
+      />
     </div>
   );
 }

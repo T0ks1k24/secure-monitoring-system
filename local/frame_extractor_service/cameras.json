@@ -3,11 +3,11 @@
     {
       "id": "entrance",
       "rtsp": "rtsp://127.0.0.1:8554/camera2",
-      "name": null,
+      "name": "",
       "enabled": true,
-      "fps": null,
-      "resize_width": null,
-      "jpeg_quality": null,
+      "fps": 2.0,
+      "resize_width": 1280,
+      "jpeg_quality": 95,
       "motion": {
         "enabled": true,
         "min_contour_area": 4000,
