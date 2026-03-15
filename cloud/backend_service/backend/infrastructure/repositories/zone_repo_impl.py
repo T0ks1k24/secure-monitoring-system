@@ -28,7 +28,7 @@ class ZoneRepositoryImpl:
         db = SessionLocal()
         zones = db.query(ZoneModel).filter(
             ZoneModel.camera_id == camera_id,
-            ZoneModel.is_active == 1
+            ZoneModel.is_active == True
         ).all()
         db.close()
         return zones

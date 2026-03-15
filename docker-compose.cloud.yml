@@ -1,7 +1,6 @@
 version: "3.9"
 
 services:
-  # CLOUD COMPONENTS
   postgres:
     image: postgres:16
     container_name: postgres_service
@@ -50,8 +49,6 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    volumes:
-      - ./cloud/backend_service/backend:/app
     ports:
       - "8000:8000"
     environment:
@@ -68,41 +65,10 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-    volumes:
-      - ./cloud/ai_model_service:/app
     ports:
       - "5000:5000"
     environment:
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
-    networks:
-      - security_net
-
-  # LOCAL COMPONENTS
-  frame_extractor:
-    build:
-      context: ./local/frame_extractor_service
-    container_name: frame_extractor_service
-    restart: unless-stopped
-    depends_on:
-      - ai_service
-    volumes:
-      - ./local/frame_extractor_service:/app
-    ports:
-      - "8100:8100"
-    environment:
-      AI_SERVICE_URL: http://ai_service:5000/api/v1/detect
-    networks:
-      - security_net
-
-  frontend:
-    build:
-      context: ./local/frontend_service/frontend
-    container_name: frontend_service
-    restart: unless-stopped
-    ports:
-      - "3000:80"
-    environment:
-      VITE_API_URL: http://localhost:8000
     networks:
       - security_net
 

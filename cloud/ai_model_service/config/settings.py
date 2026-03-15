@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     TRAJECTORY_HISTORY_FRAMES: int = 30
     # Мінімальна швидкість (px/frame) що вважається «рухом»
     TRAJECTORY_MIN_SPEED_PX: float = 5.0
+    
+    # ── Debug ─────────────────────────────────────────────────────
+    # Включає/виключає відображення кадрів з результатами (cv2.imshow)
+    DEBUG_VISUALIZE: bool = False
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
