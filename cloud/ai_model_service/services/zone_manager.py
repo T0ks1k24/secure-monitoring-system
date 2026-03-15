@@ -196,18 +196,27 @@ class ZoneManager:
         if self._http_client is None:
             return []
         try:
-            resp = await self._http_client.get(
-                "/api/zones",
-                params={"camera_id": camera_id},
-            )
+            # Backend API matches GET /zones/{camera_id} or /api/zones/{camera_id} based on mapping
+            # Based on backend's presentation/api/zone_controller.py: router.get("/{camera_id}")
+            # which might be mounted under /api/zones or /zones.
+            # Usually BACKEND_API_URL includes the base path.
+            resp = await self._http_client.get(f"/api/zones/{camera_id}")
             resp.raise_for_status()
-            data = resp.json()
-            zones = [Zone(**z) for z in data.get("zones", [])]
-            return [z for z in zones if z.enabled]
-        except httpx.TimeoutException:
-            logger.warning(f"Timeout fetching zones for {camera_id}")
-        except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP {e.response.status_code} fetching zones for {camera_id}")
+            
+            # The backend zone_controller returns a list directly: `List[ZoneResponse]`
+            # but we also handle {"zones": [...]} just in case.
+            raw_data = resp.json()
+            zone_data_list = raw_data if isinstance(raw_data, list) else raw_data.get("zones", [])
+            
+            zones = [Zone(**z) for z in zone_data_list]
+            
+            # Filter out disabled zones
+            enabled_zones = [z for z in zones if z.enabled]
+            
+            logger.info(f"Fetched {len(enabled_zones)} zones for camera {camera_id} from backend.")
+            return enabled_zones
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to fetch zones for camera {camera_id}: {e}")
         except Exception:
             logger.exception(f"Failed to fetch zones for {camera_id}")
         # Повертаємо старий кеш якщо є

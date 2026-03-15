@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
 
+    # RABBITMQ
+    RABBITMQ_URL: str = "amqp://guest:guest@rabbitmq:5672/"
+    ZONES_EXCHANGE: str = "security.zones"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore"

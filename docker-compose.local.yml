@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  frame_extractor:
+    build:
+      context: ./local/frame_extractor_service
+    container_name: frame_extractor_service
+    restart: unless-stopped
+    ports:
+      - "8100:8100"
+    environment:
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai_model_service:5000/api/v1/detect}
+    networks:
+      - security_local_net
+
+  frontend:
+    build:
+      context: ./local/frontend_service/frontend
+    container_name: frontend_service
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    networks:
+      - security_local_net
+
+networks:
+  security_local_net:
+    driver: bridge

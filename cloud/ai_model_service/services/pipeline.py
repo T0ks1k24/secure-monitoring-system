@@ -79,8 +79,16 @@ class AnalyzePipeline:
 
         # ── Step 5: Publish to RabbitMQ ───────────────────────────
         published = 0
+        # 5. Публікуємо івенти
         if security_events:
             published = await rabbitmq_service.publish_events(security_events)
+
+        # 6. Debug візуалізація (якщо включена)
+        from services.debug_visualizer import debug_visualizer
+        debug_visualizer.show(frame, zones, confirmed_tracks, security_events)
+
+        # 6. Формуємо відповідь
+        if security_events:
             for evt in security_events:
                 logger.info(
                     f"[{camera_id}] 🚨 {evt.event_type} | "

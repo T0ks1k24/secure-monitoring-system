@@ -1,12 +1,12 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies for OpenCV and YOLO
 RUN apt-get update && apt-get install -y \
     ffmpeg \
-    libglib2.0-0 \
     libgl1 \
+    libglib2.0-0 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -19,14 +19,13 @@ COPY pyproject.toml uv.lock ./
 # Install dependencies
 RUN uv sync --frozen --no-dev
 
-# Copy application code
+# Copy application code and models
 COPY . .
 
 # Set environment variables
 ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-EXPOSE 8000
+EXPOSE 5000
 
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "python", "main.py"]
