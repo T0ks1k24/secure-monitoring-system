@@ -1,9 +1,46 @@
-.grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
+.cameras-page {
+  padding: 20px;
+  position: relative;
+  min-height: calc(100vh - 35px);
+
+  .page-header {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
+
+    .settings-btn {
+      background: rgba(51, 65, 85, 0.8);
+      border: 1px solid #475569;
+      color: #cbd5e1;
+      font-size: 20px;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      backdrop-filter: blur(4px);
+      -webkit-app-region: no-drag;
+
+      &:hover {
+        background: #475569;
+        color: white;
+        transform: rotate(45deg);
+      }
+    }
+  }
 }
 
+.grid {
+  display: grid;
+  padding-right: 60px; 
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
 .camera-card {
     position: relative;
     cursor: pointer;

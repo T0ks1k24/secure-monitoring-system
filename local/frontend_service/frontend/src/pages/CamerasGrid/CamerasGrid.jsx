@@ -14,7 +14,11 @@ export default function CamerasGrid() {
 
   return (
     <div className="cameras-page">
-      
+      <div className="page-header">
+        <button className="settings-btn" onClick={() => navigate("/settings")} title="Налаштування">
+          ⚙️
+        </button>
+      </div>
       <div className="grid">
         {cameras.map((cam) => (
           <div

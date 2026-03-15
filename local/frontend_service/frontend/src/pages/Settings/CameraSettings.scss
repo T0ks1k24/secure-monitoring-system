@@ -1,0 +1,121 @@
+.settings-container {
+  padding: 30px;
+  color: #e2e8f0;
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+
+  .add-btn {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+
+    &:hover {
+      background: linear-gradient(135deg, #1d4ed8, #1e40af);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  .settings-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #0f172a;
+    border-radius: 12px;
+    overflow: hidden;
+    
+
+    th {
+      background: #1e293b;
+      padding: 15px;
+      text-align: left;
+      
+    }
+
+    td {
+      padding: 15px;
+      border-bottom: 1px solid #1e293b;
+      vertical-align: middle;
+    }
+    td, th {
+      &:last-child { text-align: right; width: 140px; }
+      height: 80px;
+    }
+
+    .status-pill {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      text-transform: uppercase;
+
+      &.running {
+        background: #064e3b;
+        color: #34d399;
+      }
+
+      &.stopped {
+        background: #334155;
+        color: #94a3b8;
+      }
+
+      &.error {
+        background: #7f1d1d;
+        color: #f87171;
+      }
+
+      &.connecting { 
+        background: #1e3a8a; 
+        color: #60a5fa; 
+      }
+    }
+
+    .rtsp-text {
+      font-family: monospace;
+      color: #94a3b8;
+      font-size: 13px;
+      max-width: 250px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+
+      button {
+        background: #1e293b;
+        border: none;
+        color: white;
+        width: 32px; height: 32px;
+        display: inline-flex; align-items: center; justify-content: center;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+
+        &:hover {
+          background: #334155;
+        }
+
+        &.delete:hover {
+          background: #7f1d1d;
+        }
+      }
+    }
+  }
+}
