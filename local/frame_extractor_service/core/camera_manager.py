@@ -28,7 +28,7 @@ class CameraManager:
         ai_client: IAIClient,
         settings: Settings,
     ) -> None:
-        self._workers: Dict[str, CameraWorker] = {}
+        self._workers: Dict[int, CameraWorker] = {}
         self._factory = worker_factory
         self._repo = repository
         self._ai_client = ai_client
@@ -56,58 +56,71 @@ class CameraManager:
     # CRUD
 
     def add_camera(self, req: CameraAddRequest) -> CameraStatusResponse:
-        if req.id in self._workers:
-            raise ValueError(f"Camera '{req.id}' already exists")
+        # Create config without ID first
         cfg = CameraConfig(**req.model_dump())
+        
+        # Save to repo to get the generated ID
+        new_id = self._repo.add(cfg)
+        cfg.id = new_id
+        
+        # Now create and register the worker
         worker = self._factory.create_worker(cfg)
-        self._workers[cfg.id] = worker
+        self._workers[new_id] = worker
+        
         if cfg.enabled:
             worker.start()
-        self._repo.save_all([w.config for w in self._workers.values()])
-        logger.info("Camera added: %s", req.id)
+            
+        logger.info("Camera added with ID: %s", new_id)
         return self._build_response(worker)
 
     def update_camera(
-        self, camera_id: str, req: CameraUpdateRequest
+        self, camera_id: int, req: CameraUpdateRequest
     ) -> CameraStatusResponse:
         worker = self._get_or_raise(camera_id)
         updates = req.model_dump(exclude_none=True)
+        
+        # Update top-level camera params
         for key, val in updates.items():
             if key != "motion":
                 setattr(worker.config, key, val)
+        
+        # Partial update for motion config
         if req.motion is not None:
-            worker.config.motion = req.motion
+            motion_updates = req.motion.model_dump(exclude_none=True)
+            for m_key, m_val in motion_updates.items():
+                setattr(worker.config.motion, m_key, m_val)
+        
         worker.update_params(
             fps=updates.get("fps"),
             resize_width=updates.get("resize_width"),
             jpeg_quality=updates.get("jpeg_quality"),
-            motion=req.motion,
+            motion=worker.config.motion if req.motion else None,
         )
-        self._repo.save_all([w.config for w in self._workers.values()])
+        self._repo.update(worker.config)
         logger.info("Camera updated: %s", camera_id)
         return self._build_response(worker)
 
-    async def remove_camera(self, camera_id: str) -> None:
+    async def remove_camera(self, camera_id: int) -> None:
         worker = self._get_or_raise(camera_id)
         await worker.stop()
         del self._workers[camera_id]
-        self._repo.save_all([w.config for w in self._workers.values()])
+        self._repo.delete(camera_id)
         logger.info("Camera removed: %s", camera_id)
 
     # Control
 
-    def start_camera(self, camera_id: str) -> CameraStatusResponse:
+    def start_camera(self, camera_id: int) -> CameraStatusResponse:
         worker = self._get_or_raise(camera_id)
         worker.start()
         worker.config.enabled = True
-        self._repo.save_all([w.config for w in self._workers.values()])
+        self._repo.update(worker.config)
         return self._build_response(worker)
 
-    async def stop_camera(self, camera_id: str) -> CameraStatusResponse:
+    async def stop_camera(self, camera_id: int) -> CameraStatusResponse:
         worker = self._get_or_raise(camera_id)
         await worker.stop()
         worker.config.enabled = False
-        self._repo.save_all([w.config for w in self._workers.values()])
+        self._repo.update(worker.config)
         return self._build_response(worker)
 
     # Queries
@@ -115,7 +128,7 @@ class CameraManager:
     def get_all(self) -> List[CameraStatusResponse]:
         return [self._build_response(w) for w in self._workers.values()]
 
-    def get_one(self, camera_id: str) -> CameraStatusResponse:
+    def get_one(self, camera_id: int) -> CameraStatusResponse:
         return self._build_response(self._get_or_raise(camera_id))
 
     # Global config
@@ -141,7 +154,7 @@ class CameraManager:
 
     # Internal
 
-    def _get_or_raise(self, camera_id: str) -> CameraWorker:
+    def _get_or_raise(self, camera_id: int) -> CameraWorker:
         worker = self._workers.get(camera_id)
         if worker is None:
             raise KeyError(f"Camera '{camera_id}' not found")

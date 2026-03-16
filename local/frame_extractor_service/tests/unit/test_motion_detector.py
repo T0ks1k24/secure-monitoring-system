@@ -1,13 +1,6 @@
-"""
-Тести для MotionDetector і _scanner_utils.
-
-Обидва модулі не потребують pydantic/fastapi —
-тільки cv2, numpy і stdlib. Запускаються без встановленого FastAPI.
-"""
 import sys
 import os
 
-# На випадок запуску напряму (python test_motion_detector.py)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 import unittest
@@ -19,8 +12,6 @@ from detection.motion_detector import (
     MotionState,
 )
 
-
-# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def black(h: int = 480, w: int = 640) -> np.ndarray:
     return np.zeros((h, w, 3), dtype=np.uint8)
@@ -34,7 +25,7 @@ def rect(x: int = 100, y: int = 100, w_r: int = 200, h_r: int = 150,
 
 
 def make_detector(**kw) -> MotionDetector:
-    """Створює детектор з зручними тестовими дефолтами."""
+    """Creates a detector with convenient test defaults."""
     cfg = MotionDetectorConfig(
         min_contour_area      = kw.pop("min_contour_area",       500),
         min_total_area        = kw.pop("min_total_area",          800),
@@ -50,14 +41,12 @@ def make_detector(**kw) -> MotionDetector:
     return MotionDetector(cfg)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Базова логіка
-# ══════════════════════════════════════════════════════════════════════════════
+# Basic Logic
 
 class TestBasic(unittest.TestCase):
 
     def test_first_frame_never_triggers(self):
-        """Перший кадр завжди ініціалізує фон — ніколи не = True."""
+        """The first frame always initializes the background - never triggers motion."""
         d = make_detector()
         self.assertFalse(d.detect(rect(), 0.0))
 
@@ -88,33 +77,31 @@ class TestBasic(unittest.TestCase):
         d.detect(black(), 0.0)
         d.detect(rect(), 0.1)
         d.reset()
-        # Перший кадр після reset = ініціалізація фону
+        # The first frame after reset initializes the background
         self.assertFalse(d.detect(rect(), 0.2))
         self.assertEqual(d.state.total_events, 0)
 
     def test_static_object_stays_motion(self):
         """
-        Нерухомий об'єкт ЗАЛИШАЄТЬСЯ «рухом» відносно фонової моделі —
-        на відміну від простого порівняння з попереднім кадром.
+        A static object REMAINS "motion" relative to the background model -
+        unlike a simple comparison with the previous frame.
         """
         d = make_detector(min_consecutive_frames=1)
-        d.detect(black(), 0.0)      # фон = чорний
-        d.detect(rect(), 0.1)       # рух є → фон НЕ оновлюється
-        self.assertTrue(d.detect(rect(), 0.2))  # прямокутник досі відрізняється від фону
+        d.detect(black(), 0.0)      # background = black
+        d.detect(rect(), 0.1)       # motion exists -> background NOT updated
+        self.assertTrue(d.detect(rect(), 0.2))  # rectangle still differs from background
 
     def test_disabled_always_sends(self):
         d = make_detector()
         d.config.enabled = False
-        # enabled=False — логіка виявлення не викликається, але detect() повертає True
-        # (виклик detect() з disabled обробляється в camera_worker, не тут)
-        # Перевіряємо що фон ініціалізується нормально
+        # enabled=False - detection logic is not called, but detect() returns True
+        # (detect() call with disabled is handled in camera_worker, not here)
+        # Verify that the background initializes normally
         d.detect(black(), 0.0)
         self.assertIsNotNone(d._background)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # Consecutive frames
-# ══════════════════════════════════════════════════════════════════════════════
 
 class TestConsecutiveFrames(unittest.TestCase):
 
@@ -127,14 +114,14 @@ class TestConsecutiveFrames(unittest.TestCase):
         self.assertTrue(d.detect(m, 0.3))   # 3 ✓
 
     def test_gap_resets_counter(self):
-        """Тихий кадр скидає лічильник підряд."""
+        """A quiet frame resets the consecutive counter."""
         d = make_detector(min_consecutive_frames=3)
         d.detect(black(), 0.0)
         m = rect()
         d.detect(m, 0.1)   # 1
         d.detect(m, 0.2)   # 2
-        d.detect(black(), 0.3)  # тиша → counter = 0, фон оновлюється
-        self.assertFalse(d.detect(m, 0.4))  # counter = 1, потрібно 3
+        d.detect(black(), 0.3)  # silence -> counter = 0, background updated
+        self.assertFalse(d.detect(m, 0.4))  # counter = 1, need 3
 
     def test_single_frame_mode(self):
         d = make_detector(min_consecutive_frames=1)
@@ -142,24 +129,22 @@ class TestConsecutiveFrames(unittest.TestCase):
         self.assertTrue(d.detect(rect(), 0.1))
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # Cooldown
-# ══════════════════════════════════════════════════════════════════════════════
 
 class TestCooldown(unittest.TestCase):
 
     def test_sends_during_cooldown_window(self):
         d = make_detector(min_consecutive_frames=1, cooldown_seconds=5.0)
         d.detect(black(), 0.0)
-        d.detect(rect(), 1.0)       # підтверджений рух
-        # Через 3 секунди — ще в cooldown (3 < 5)
+        d.detect(rect(), 1.0)       # confirmed motion
+        # At 3 seconds - still in cooldown (3 < 5)
         self.assertTrue(d.detect(black(), 4.0))
 
     def test_stops_after_cooldown_expires(self):
         d = make_detector(min_consecutive_frames=1, cooldown_seconds=2.0)
         d.detect(black(), 0.0)
         d.detect(rect(), 1.0)
-        # Через 10 секунд — cooldown давно закінчився
+        # At 10 seconds - cooldown long expired
         self.assertFalse(d.detect(black(), 11.0))
 
     def test_zero_cooldown_stops_immediately(self):
@@ -169,7 +154,7 @@ class TestCooldown(unittest.TestCase):
         self.assertFalse(d.detect(black(), 1.1))
 
     def test_no_cooldown_without_prior_motion(self):
-        """Cooldown не спрацьовує якщо руху ще не було."""
+        """Cooldown doesn't trigger if there was no prior motion."""
         d = make_detector(min_consecutive_frames=1, cooldown_seconds=100.0)
         d.detect(black(), 0.0)
         self.assertFalse(d.detect(black(), 0.1))
@@ -188,9 +173,7 @@ class TestCooldown(unittest.TestCase):
         self.assertTrue(d.state.is_active, "is_active should be True during cooldown")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Events і статистика
-# ══════════════════════════════════════════════════════════════════════════════
+# Events and Statistics
 
 class TestStats(unittest.TestCase):
 
@@ -198,7 +181,7 @@ class TestStats(unittest.TestCase):
         d = make_detector(min_consecutive_frames=1, cooldown_seconds=0.0)
         d.detect(black(), 0.0)
         d.detect(rect(), 1.0)       # event 1
-        d.detect(black(), 2.0)      # тиша → фон оновлюється
+        d.detect(black(), 2.0)      # silence -> background updated
         d.detect(rect(), 10.0)      # event 2
         self.assertEqual(d.state.total_events, 2)
 
@@ -225,9 +208,7 @@ class TestStats(unittest.TestCase):
         self.assertFalse(d.get_stats()["motion_detected"])
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # Background model
-# ══════════════════════════════════════════════════════════════════════════════
 
 class TestBackgroundModel(unittest.TestCase):
 
@@ -238,20 +219,20 @@ class TestBackgroundModel(unittest.TestCase):
         before = d._background.copy()
         d.detect(rect(), 0.1)
         d.detect(rect(), 0.2)
-        # Фон не повинен змінитись поки є рух або cooldown
+        # Background should not change while there is motion or cooldown
         self.assertEqual(cv2.absdiff(d._background, before).sum(), 0)
 
     def test_bg_updates_when_quiet(self):
-        """alpha=1.0 → фон повністю замінюється поточним кадром."""
+        """alpha=1.0 -> background is fully replaced by the current frame."""
         d = make_detector(
             min_consecutive_frames=1,
             cooldown_seconds=0.0,
             background_update_alpha=1.0,
         )
-        d.detect(black(), 0.0)      # фон = чорний
-        d.detect(rect(), 0.1)       # рух підтверджено
-        d.detect(black(), 0.2)      # тиша → фон оновлюється до чорного
-        # Прямокутник знову видимий на новому чорному фоні
+        d.detect(black(), 0.0)      # background = black
+        d.detect(rect(), 0.1)       # motion confirmed
+        d.detect(black(), 0.2)      # silence -> background updated to black
+        # Rectangle is visible again on the new black background
         self.assertTrue(d.detect(rect(), 0.3))
 
     def test_bg_matches_frame_shape(self):
@@ -269,62 +250,6 @@ class TestBackgroundModel(unittest.TestCase):
         self.assertEqual(d.config.min_contour_area, 99999)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Scanner utils (без pydantic)
-# ══════════════════════════════════════════════════════════════════════════════
-
-class TestScannerUtils(unittest.TestCase):
-
-    def test_build_url_no_auth(self):
-        from frame_extractor_service.service._scanner_utils import build_rtsp_url
-        self.assertEqual(
-            build_rtsp_url("192.168.1.1", 554),
-            "rtsp://192.168.1.1:554/",
-        )
-
-    def test_build_url_with_credentials(self):
-        from frame_extractor_service.service._scanner_utils import build_rtsp_url
-        self.assertEqual(
-            build_rtsp_url("192.168.1.1", 554, user="admin", password="pass", path="stream"),
-            "rtsp://admin:pass@192.168.1.1:554/stream",
-        )
-
-    def test_build_url_user_no_password(self):
-        from frame_extractor_service.service._scanner_utils import build_rtsp_url
-        url = build_rtsp_url("10.0.0.1", 8554, user="admin", password="")
-        self.assertIn("admin@", url)
-        self.assertNotIn(":@", url)
-
-    def test_build_url_strips_leading_slash(self):
-        from frame_extractor_service.service._scanner_utils import build_rtsp_url
-        url = build_rtsp_url("1.2.3.4", 554, path="/stream")
-        self.assertEqual(url, "rtsp://1.2.3.4:554/stream")
-
-    def test_invalid_subnet_raises(self):
-        from frame_extractor_service.service._scanner_utils import scan_network_sync
-        with self.assertRaises(ValueError):
-            scan_network_sync("not_a_subnet", [554], [], timeout=0.1, max_workers=4)
-
-    def test_unreachable_subnet_returns_empty(self):
-        """192.0.2.0/29 — TEST-NET, не використовується в реальних мережах."""
-        from frame_extractor_service.service._scanner_utils import scan_network_sync
-        result = scan_network_sync(
-            "192.0.2.0/29", [9999], [], timeout=0.1, max_workers=8
-        )
-        self.assertEqual(result["found"], [])
-        self.assertEqual(result["subnet"], "192.0.2.0/29")
-        self.assertGreater(result["hosts_scanned"], 0)
-
-    def test_result_keys(self):
-        from frame_extractor_service.service._scanner_utils import scan_network_sync
-        result = scan_network_sync(
-            "192.0.2.0/29", [9999], [], timeout=0.1, max_workers=4
-        )
-        for key in ("subnet", "ports_scanned", "hosts_scanned", "found", "scan_duration_sec"):
-            self.assertIn(key, result)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

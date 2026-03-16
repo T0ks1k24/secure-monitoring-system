@@ -16,7 +16,7 @@ from api.deps import get_camera_manager
 from service.api.routes import router
 
 
-def _make_response(cam_id: str = "cam1") -> CameraStatusResponse:
+def _make_response(cam_id: int = 1) -> CameraStatusResponse:
     """Build a minimal CameraStatusResponse for test assertions."""
     return CameraStatusResponse(
         id=cam_id,
@@ -48,7 +48,7 @@ class TestCamerasListEndpoint(unittest.TestCase):
 
     def test_list_cameras_returns_200(self):
         mgr = MagicMock()
-        mgr.get_all.return_value = [_make_response("c1"), _make_response("c2")]
+        mgr.get_all.return_value = [_make_response(1), _make_response(2)]
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
@@ -62,14 +62,14 @@ class TestCamerasGetOneEndpoint(unittest.TestCase):
 
     def test_get_camera_returns_200(self):
         mgr = MagicMock()
-        mgr.get_one.return_value = _make_response("c1")
+        mgr.get_one.return_value = _make_response(1)
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.get("/api/v1/cameras/c1")
+            resp = client.get("/api/v1/cameras/1")
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json()["id"], "c1")
+        self.assertEqual(resp.json()["id"], 1)
 
     def test_get_camera_not_found_returns_404(self):
         mgr = MagicMock()
@@ -77,7 +77,7 @@ class TestCamerasGetOneEndpoint(unittest.TestCase):
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.get("/api/v1/cameras/ghost")
+            resp = client.get("/api/v1/cameras/999")
 
         self.assertEqual(resp.status_code, 404)
 
@@ -86,31 +86,33 @@ class TestCamerasAddEndpoint(unittest.TestCase):
 
     def test_add_camera_returns_201(self):
         mgr = MagicMock()
-        mgr.add_camera.return_value = _make_response("new1")
+        mgr.add_camera.return_value = _make_response(10)
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/cameras", json={"id": "new1", "rtsp": "rtsp://new"})
+            resp = client.post("/api/v1/cameras", json={"rtsp": "rtsp://new"})
 
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(resp.json()["id"], "new1")
+        self.assertEqual(resp.json()["id"], 10)
 
-    def test_add_camera_duplicate_returns_409(self):
+    def test_add_camera_error_returns_400(self):
+        # We don't have a specific 409 duplicate check anymore as its handled by DB
+        # But we might have other validation errors.
         mgr = MagicMock()
-        mgr.add_camera.side_effect = ValueError("Camera 'dup' already exists")
+        mgr.add_camera.side_effect = ValueError("Invalid RTSP URL")
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/cameras", json={"id": "dup", "rtsp": "rtsp://dup"})
+            resp = client.post("/api/v1/cameras", json={"rtsp": "invalid"})
 
-        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(resp.status_code, 400)
 
     def test_add_camera_missing_required_field_returns_422(self):
         mgr = MagicMock()
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/cameras", json={"id": "x"})  # missing rtsp
+            resp = client.post("/api/v1/cameras", json={"name": "x"})  # missing rtsp
 
         self.assertEqual(resp.status_code, 422)
 
@@ -119,11 +121,11 @@ class TestCamerasUpdateEndpoint(unittest.TestCase):
 
     def test_update_camera_returns_200(self):
         mgr = MagicMock()
-        mgr.update_camera.return_value = _make_response("c1")
+        mgr.update_camera.return_value = _make_response(1)
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.patch("/api/v1/cameras/c1", json={"fps": 5.0})
+            resp = client.patch("/api/v1/cameras/1", json={"fps": 5.0})
 
         self.assertEqual(resp.status_code, 200)
 
@@ -133,7 +135,7 @@ class TestCamerasUpdateEndpoint(unittest.TestCase):
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.patch("/api/v1/cameras/ghost", json={"fps": 5.0})
+            resp = client.patch("/api/v1/cameras/999", json={"fps": 5.0})
 
         self.assertEqual(resp.status_code, 404)
 
@@ -146,7 +148,7 @@ class TestCamerasDeleteEndpoint(unittest.TestCase):
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.delete("/api/v1/cameras/c1")
+            resp = client.delete("/api/v1/cameras/1")
 
         self.assertEqual(resp.status_code, 204)
 
@@ -156,7 +158,7 @@ class TestCamerasDeleteEndpoint(unittest.TestCase):
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.delete("/api/v1/cameras/ghost")
+            resp = client.delete("/api/v1/cameras/999")
 
         self.assertEqual(resp.status_code, 404)
 
@@ -165,11 +167,11 @@ class TestCamerasStartEndpoint(unittest.TestCase):
 
     def test_start_camera_returns_200(self):
         mgr = MagicMock()
-        mgr.start_camera.return_value = _make_response("c1")
+        mgr.start_camera.return_value = _make_response(1)
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/cameras/c1/start")
+            resp = client.post("/api/v1/cameras/1/start")
 
         self.assertEqual(resp.status_code, 200)
 
@@ -179,7 +181,7 @@ class TestCamerasStartEndpoint(unittest.TestCase):
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/cameras/ghost/start")
+            resp = client.post("/api/v1/cameras/999/start")
 
         self.assertEqual(resp.status_code, 404)
 
@@ -188,11 +190,11 @@ class TestCamerasStopEndpoint(unittest.TestCase):
 
     def test_stop_camera_returns_200(self):
         mgr = MagicMock()
-        mgr.stop_camera = AsyncMock(return_value=_make_response("c1"))
+        mgr.stop_camera = AsyncMock(return_value=_make_response(1))
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/cameras/c1/stop")
+            resp = client.post("/api/v1/cameras/1/stop")
 
         self.assertEqual(resp.status_code, 200)
 
@@ -202,7 +204,7 @@ class TestCamerasStopEndpoint(unittest.TestCase):
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
-            resp = client.post("/api/v1/cameras/ghost/stop")
+            resp = client.post("/api/v1/cameras/999/stop")
 
         self.assertEqual(resp.status_code, 404)
 
@@ -230,9 +232,9 @@ class TestStatusEndpoint(unittest.TestCase):
         mock_settings.DEFAULT_JPEG_QUALITY = 95
 
         mgr = MagicMock()
-        running = _make_response("c1")
+        running = _make_response(1)
         running.status = "running"
-        mgr.get_all.return_value = [running, _make_response("c2")]
+        mgr.get_all.return_value = [running, _make_response(2)]
         app = _create_test_app(mgr)
 
         with TestClient(app) as client:
@@ -260,34 +262,6 @@ class TestConfigEndpoint(unittest.TestCase):
         mgr.update_global_config.assert_called_once()
 
 
-class TestScannerSearchGetEndpoint(unittest.TestCase):
-
-    @patch("api.scanner.scan_network")
-    def test_search_get_returns_200(self, mock_scan):
-        from schemas import ScanResult
-        mock_scan.return_value = ScanResult(
-            subnet="192.168.1.0/24",
-            ports_scanned=[554],
-            hosts_scanned=254,
-            found=[],
-            scan_duration_sec=1.0,
-        )
-        mgr = MagicMock()
-        app = _create_test_app(mgr)
-
-        with TestClient(app) as client:
-            resp = client.get("/api/v1/scanner/search?subnet=192.168.1.0/24&ports=554")
-
-        self.assertEqual(resp.status_code, 200)
-
-    def test_search_get_invalid_ports_returns_400(self):
-        mgr = MagicMock()
-        app = _create_test_app(mgr)
-
-        with TestClient(app) as client:
-            resp = client.get("/api/v1/scanner/search?ports=abc")
-
-        self.assertEqual(resp.status_code, 400)
 
 
 if __name__ == "__main__":

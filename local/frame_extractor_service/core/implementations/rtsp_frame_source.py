@@ -23,7 +23,7 @@ class RTSPFrameSource(IFrameSource):
     async def read(self) -> Tuple[bool, Optional[np.ndarray]]:
         if self._cap is None or not self._cap.isOpened():
             return False, None
-            
+
         loop = asyncio.get_running_loop()
         ret, frame = await loop.run_in_executor(None, self._cap.read)
         return ret, frame

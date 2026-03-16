@@ -1,8 +1,8 @@
 """
-MotionDetector — детектор руху на основі background model.
+MotionDetector — motion detector based on a background model.
 
-Не потребує жодних імпортів з frame_extractor_service —
-лише cv2 та numpy. Безпечно тестується без pydantic/fastapi.
+Does not require any imports from frame_extractor_service —
+only cv2 and numpy. Safely tested without pydantic/fastapi.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ class MotionDetector:
         self.state = MotionState()
 
     def reset(self) -> None:
-        """Скидає стан і фон. Викликати при реконнекті камери."""
+        """Resets state and background. Call on camera reconnect."""
         self._background = None
         self.state = MotionState()
 
@@ -39,8 +39,8 @@ class MotionDetector:
 
     def detect(self, frame: np.ndarray, current_time: float) -> bool:
         """
-        Аналізує кадр. Повертає True якщо треба надсилати на AI.
-        True = є підтверджений рух АБО ще в межах cooldown.
+        Analyzes the frame. Returns True if frame should be sent to AI.
+        True = confirmed motion exists OR still within cooldown.
         """
         raw = self._compute_raw_motion(frame)
 
@@ -70,12 +70,10 @@ class MotionDetector:
         )
 
         # BUG FIX #2: keep is_active=True during cooldown period
-        # Previously is_active was reset to False as soon as motion stopped,
-        # even though cooldown was still active. Now we keep it active.
         should_send = confirmed or in_cooldown
         self.state.is_active = should_send
 
-        # Оновлюємо фон тільки коли тихо (немає руху і не в cooldown)
+        # Update background only when quiet (no motion and not in cooldown)
         if not should_send and not raw and self._background is not None:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             gray = cv2.GaussianBlur(
@@ -97,7 +95,7 @@ class MotionDetector:
         }
 
     def _compute_raw_motion(self, frame: np.ndarray) -> bool:
-        """Повертає True якщо є "сирий" рух у поточному кадрі."""
+        """Returns True if there is "raw" motion in the current frame."""
         cfg = self.config
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (cfg.blur_size, cfg.blur_size), 0)

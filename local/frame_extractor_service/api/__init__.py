@@ -1,2 +1,2 @@
-# api/__init__.py — порожній.
-# Роутери збираються в service/api/routes.py
+# api/__init__.py — empty.
+# Routes are collected in the application entry point.

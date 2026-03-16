@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional, Protocol, Tuple
 
 import numpy as np
 
-from schemas.motion_config import MotionConfig
+from schemas import MotionConfig
 
 
 class IFrameProcessor(Protocol):

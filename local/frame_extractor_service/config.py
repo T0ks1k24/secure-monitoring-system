@@ -16,12 +16,7 @@ class Settings(BaseSettings):
     DEFAULT_JPEG_QUALITY: int = 95
     DEFAULT_RECONNECT_DELAY: int = 3
 
-    # Scan
-    SCANNER_TIMEOUT: float = 1.0
-    SCANNER_MAX_WORKERS: int = 64
-
-    # Save config
-    CAMERAS_CONFIG_PATH: str = "cameras.json"
+    DATABASE_URL: str = "sqlite:///./cameras.db"
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

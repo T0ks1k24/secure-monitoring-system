@@ -3,7 +3,7 @@ from .camera_worker import CameraWorker
 from .camera_stats import CameraStats
 from .camera_manager import CameraManager
 from .camera_worker_factory import CameraWorkerFactory
-from .camera_config_repository import CameraConfigRepository
+from .sqlite_camera_repository import SQLiteCameraRepository
 
 __all__ = [
     "AIClient",
@@ -11,5 +11,5 @@ __all__ = [
     "CameraStats",
     "CameraManager",
     "CameraWorkerFactory",
-    "CameraConfigRepository",
+    "SQLiteCameraRepository",
 ]

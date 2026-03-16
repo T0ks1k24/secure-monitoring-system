@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field
+from typing import Optional
+from pydantic import BaseModel, Field, field_validator
 
 
 class MotionConfig(BaseModel):
@@ -7,72 +8,70 @@ class MotionConfig(BaseModel):
 
     The detector compares each frame to the background model (not the previous frame).
     The background is updated slowly when quiet (`background_update_alpha`).
-
-    ### Typical values ​​by scenario
-
-    | Scenario | min_contour_area | min_consecutive_frames | cooldown_seconds |
-    |---|---|---|---|
-    | Entrance / office | 4,000 | 2 | 10 |
-    | Parking | 12,000 | 2 | 15 |
-    | Street with trees | 8,000 | 3 | 5 |
-    | Maximum sensitivity | 500 | 1 | 0 |
     """
 
     enabled: bool = Field(
         default=True,
         description=(
-            "`true` — надсилати кадр тільки при виявленому русі (економія ресурсів).\n"
-            "`false` — надсилати **кожен** кадр."
+            "`true` — send frame only when motion is detected (saves resources).\n"
+            "`false` — send **every** frame."
         ),
     )
     min_contour_area: int = Field(
         default=4000, ge=100,
         description=(
-            "Мін. площа об'єкта (px²). Листя < 500, людина ~3000–15000, авто ~10000+.\n"
-            "Збільш якщо багато хибних спрацювань від дерев."
+            "Min object area (px²). Leaves < 500, human ~3000–15000, car ~10000+.\n"
+            "Increase if there are many false positives from trees."
         ),
     )
     min_total_area: int = Field(
         default=6000, ge=100,
-        description="Мін. сумарна площа всіх об'єктів (px²). Захист від шелесту листя.",
+        description="Min total area of all objects (px²). Filter for rustling leaves.",
     )
     min_solidity: float = Field(
         default=0.4, ge=0.1, le=1.0,
-        description="Мін. «щільність» форми (area / convex_hull). Листя ~0.3, люди ~0.6–0.95.",
+        description="Min shape 'solidity' (area / convex_hull). Leaves ~0.3, humans ~0.6–0.95.",
     )
     min_consecutive_frames: int = Field(
         default=2, ge=1, le=10,
-        description="Кадрів підряд для підтвердження. `1`=миттєво, `3+`=фільтр вітру.",
+        description="Consecutive frames for confirmation. `1`=instant, `3+`=wind filter.",
     )
     cooldown_seconds: float = Field(
         default=10.0, ge=0.0,
-        description="Секунди після зупинки руху — продовжувати надсилати кадри.",
+        description="Seconds after motion stops — continue sending frames.",
     )
     blur_size: int = Field(
         default=21, ge=3,
-        description="Розмір Gaussian blur (тільки непарні). Більше = менше шуму камери.",
+        description="Gaussian blur size (odd only). Larger = less camera noise.",
     )
     diff_threshold: int = Field(
         default=25, ge=1, le=255,
-        description="Поріг бінаризації різниці кадрів. Менше = чутливіше до змін.",
+        description="Frame difference binarization threshold. Lower = more sensitive.",
     )
     dilate_iterations: int = Field(
         default=2, ge=1, le=5,
-        description="Ітерації dilate. З'єднує розрізнені частини об'єкта в одну область.",
+        description="Dilate iterations. Connects fragmented object parts into one area.",
     )
     background_update_alpha: float = Field(
         default=0.05, ge=0.0, le=1.0,
         description=(
-            "Швидкість адаптації фону. "
-            "`0.01`=стабільне освітлення, `0.05`=вулиця, `0.2`=змінне освітлення."
+            "Background adaptation speed. "
+            "`0.01`=stable lighting, `0.05`=street, `0.2`=variable lighting."
         ),
     )
+
+    @field_validator("blur_size")
+    @classmethod
+    def blur_size_must_be_odd(cls, v: int) -> int:
+        if v % 2 == 0:
+            raise ValueError("blur_size must be an odd integer")
+        return v
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "summary": "🏠 Стандарт (вхід / офіс)",
+                    "summary": "🏠 Standard (Entrance / Office)",
                     "value": {
                         "enabled": True, "min_contour_area": 4000, "min_total_area": 6000,
                         "min_solidity": 0.4, "min_consecutive_frames": 2,
@@ -81,24 +80,33 @@ class MotionConfig(BaseModel):
                     },
                 },
                 {
-                    "summary": "🚗 Паркінг",
+                    "summary": "🚗 Parking",
                     "value": {
                         "enabled": True, "min_contour_area": 12000, "min_total_area": 18000,
                         "min_consecutive_frames": 2, "cooldown_seconds": 15.0,
                     },
-                },
-                {
-                    "summary": "🌳 Вулиця з деревами",
-                    "value": {
-                        "enabled": True, "min_contour_area": 8000, "min_total_area": 12000,
-                        "min_consecutive_frames": 3, "cooldown_seconds": 5.0,
-                        "background_update_alpha": 0.03,
-                    },
-                },
-                {
-                    "summary": "🔴 Вимкнути детекцію (надсилати кожен кадр)",
-                    "value": {"enabled": False},
-                },
+                }
             ]
         }
     }
+
+
+class MotionUpdateRequest(BaseModel):
+    """Optional fields for partial motion config updates."""
+    enabled: Optional[bool] = None
+    min_contour_area: Optional[int] = Field(default=None, ge=100)
+    min_total_area: Optional[int] = Field(default=None, ge=100)
+    min_solidity: Optional[float] = Field(default=None, ge=0.1, le=1.0)
+    min_consecutive_frames: Optional[int] = Field(default=None, ge=1, le=10)
+    cooldown_seconds: Optional[float] = Field(default=None, ge=0.0)
+    blur_size: Optional[int] = Field(default=None, ge=3)
+    diff_threshold: Optional[int] = Field(default=None, ge=1, le=255)
+    dilate_iterations: Optional[int] = Field(default=None, ge=1, le=5)
+    background_update_alpha: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+
+    @field_validator("blur_size")
+    @classmethod
+    def blur_size_must_be_odd(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None and v % 2 == 0:
+            raise ValueError("blur_size must be an odd integer")
+        return v

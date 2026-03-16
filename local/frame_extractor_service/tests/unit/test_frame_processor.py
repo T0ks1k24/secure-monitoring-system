@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 import numpy as np
 
 from detection.motion_detector_processor import MotionDetectorProcessor
-from schemas.motion_config import MotionConfig
+from schemas import MotionConfig
 
 
 class TestFrameProcessorResize(unittest.TestCase):

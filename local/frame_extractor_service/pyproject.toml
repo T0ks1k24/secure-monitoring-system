@@ -1,7 +1,7 @@
 [project]
 name = "frame-extractor-service"
 version = "2.0.0"
-description = "Локальний сервіс захоплення кадрів з RTSP камер"
+description = "Local service for frame extraction from RTSP cameras"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -10,7 +10,10 @@ dependencies = [
     "uvicorn[standard]>=0.29.0",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
+    "sqlalchemy>=2.0.0",
+    "numpy>=1.26.0",
     "httpx>=0.27.0",
     "python-multipart>=0.0.9",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
 ]
-

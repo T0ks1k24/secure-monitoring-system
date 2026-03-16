@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from core.interfaces.i_frame_processor import IFrameProcessor
 from detection.motion_detector import MotionDetector, MotionDetectorConfig
-from schemas.motion_config import MotionConfig
+from schemas import MotionConfig
 
 
 def _schema_to_detector_config(s: MotionConfig) -> MotionDetectorConfig:

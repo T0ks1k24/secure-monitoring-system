@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from core.ai_client import AIClient
-from core.camera_config_repository import CameraConfigRepository
+from core.sqlite_camera_repository import SQLiteCameraRepository
 from core.camera_worker_factory import CameraWorkerFactory
 from core.camera_manager import CameraManager
 from service.api.routes import router
@@ -33,7 +33,7 @@ def _create_camera_manager() -> CameraManager:
         endpoint=settings.AI_SERVICE_URL,
         timeout=settings.AI_REQUEST_TIMEOUT,
     )
-    repository = CameraConfigRepository(settings.CAMERAS_CONFIG_PATH)
+    repository = SQLiteCameraRepository(settings.DATABASE_URL)
     worker_factory = CameraWorkerFactory(ai_client=ai_client, settings=settings)
     return CameraManager(
         worker_factory=worker_factory,
