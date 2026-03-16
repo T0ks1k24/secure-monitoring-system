@@ -44,10 +44,10 @@ def _create_camera_manager() -> CameraManager:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(fastapi_app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("=== Frame Extractor Service starting ===")
     manager = _create_camera_manager()
-    app.state.camera_manager = manager
+    fastapi_app.state.camera_manager = manager
     await manager.startup()
     yield
     logger.info("=== Frame Extractor Service stopping ===")

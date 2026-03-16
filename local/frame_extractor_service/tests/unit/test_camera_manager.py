@@ -32,6 +32,7 @@ def _make_mock_worker(cam_id: int = 1, enabled: bool = True) -> MagicMock:
 
 
 class TestCameraManagerStartup(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager startup logic."""
 
     def setUp(self):
         self.factory = MagicMock()
@@ -60,15 +61,16 @@ class TestCameraManagerStartup(unittest.IsolatedAsyncioTestCase):
 
         w_enabled.start.assert_called_once()
         w_disabled.start.assert_not_called()
-        self.assertEqual(len(self.manager._workers), 2)
+        self.assertEqual(len(self.manager._workers), 2)  # pylint: disable=protected-access
 
     async def test_startup_with_no_cameras(self):
         self.repo.load_all.return_value = []
         await self.manager.startup()
-        self.assertEqual(len(self.manager._workers), 0)
+        self.assertEqual(len(self.manager._workers), 0)  # pylint: disable=protected-access
 
 
 class TestCameraManagerShutdown(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager shutdown logic."""
 
     def setUp(self):
         self.factory = MagicMock()
@@ -90,6 +92,7 @@ class TestCameraManagerShutdown(unittest.IsolatedAsyncioTestCase):
 
 
 class TestCameraManagerAdd(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager camera addition."""
 
     def setUp(self):
         self.factory = MagicMock()
@@ -124,6 +127,7 @@ class TestCameraManagerAdd(unittest.IsolatedAsyncioTestCase):
 
 
 class TestCameraManagerUpdate(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager camera updates."""
 
     def setUp(self):
         self.factory = MagicMock()
@@ -134,7 +138,7 @@ class TestCameraManagerUpdate(unittest.IsolatedAsyncioTestCase):
 
     def test_update_camera_fps_and_resize_width(self):
         w = _make_mock_worker(1)
-        self.manager._workers[1] = w
+        self.manager._workers[1] = w  # pylint: disable=protected-access
 
         req = CameraUpdateRequest(fps=5.0, resize_width=800)
         self.manager.update_camera(1, req)
@@ -146,7 +150,7 @@ class TestCameraManagerUpdate(unittest.IsolatedAsyncioTestCase):
 
     def test_update_camera_with_motion_config(self):
         w = _make_mock_worker(1)
-        self.manager._workers[1] = w
+        self.manager._workers[1] = w  # pylint: disable=protected-access
         # Initial area is 4000 (default)
         new_motion = MotionUpdateRequest(min_contour_area=9000)
 
@@ -163,6 +167,7 @@ class TestCameraManagerUpdate(unittest.IsolatedAsyncioTestCase):
 
 
 class TestCameraManagerRemove(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager camera removal."""
 
     def setUp(self):
         self.factory = MagicMock()
@@ -173,12 +178,12 @@ class TestCameraManagerRemove(unittest.IsolatedAsyncioTestCase):
 
     async def test_remove_camera_success(self):
         w = _make_mock_worker(1)
-        self.manager._workers[1] = w
+        self.manager._workers[1] = w  # pylint: disable=protected-access
 
         await self.manager.remove_camera(1)
 
         w.stop.assert_awaited_once()
-        self.assertNotIn(1, self.manager._workers)
+        self.assertNotIn(1, self.manager._workers)  # pylint: disable=protected-access
         self.repo.delete.assert_called_once_with(1)
 
     async def test_remove_camera_unknown_raises_key_error(self):
@@ -187,6 +192,7 @@ class TestCameraManagerRemove(unittest.IsolatedAsyncioTestCase):
 
 
 class TestCameraManagerStartStop(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager starting and stopping cameras."""
 
     def setUp(self):
         self.factory = MagicMock()
@@ -197,7 +203,7 @@ class TestCameraManagerStartStop(unittest.IsolatedAsyncioTestCase):
 
     def test_start_camera_success(self):
         w = _make_mock_worker(1)
-        self.manager._workers[1] = w
+        self.manager._workers[1] = w  # pylint: disable=protected-access
 
         result = self.manager.start_camera(1)
         w.start.assert_called_once()
@@ -209,7 +215,7 @@ class TestCameraManagerStartStop(unittest.IsolatedAsyncioTestCase):
 
     async def test_stop_camera_success(self):
         w = _make_mock_worker(1)
-        self.manager._workers[1] = w
+        self.manager._workers[1] = w  # pylint: disable=protected-access
 
         result = await self.manager.stop_camera(1)
         w.stop.assert_awaited_once()
@@ -221,6 +227,7 @@ class TestCameraManagerStartStop(unittest.IsolatedAsyncioTestCase):
 
 
 class TestCameraManagerQueries(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager query methods."""
 
     def setUp(self):
         self.factory = MagicMock()
@@ -239,7 +246,7 @@ class TestCameraManagerQueries(unittest.IsolatedAsyncioTestCase):
 
     def test_get_one_returns_response(self):
         w = _make_mock_worker(1)
-        self.manager._workers[1] = w
+        self.manager._workers[1] = w  # pylint: disable=protected-access
 
         result = self.manager.get_one(1)
         self.assertEqual(result.id, 1)
@@ -250,6 +257,7 @@ class TestCameraManagerQueries(unittest.IsolatedAsyncioTestCase):
 
 
 class TestCameraManagerGlobalConfig(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager global configuration updates."""
 
     def setUp(self):
         self.factory = MagicMock()

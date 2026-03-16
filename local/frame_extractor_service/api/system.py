@@ -23,9 +23,9 @@ async def health() -> dict:
     summary="Service status",
     description=(
         "Returns general information about the service:\n"
-        "- `active_cameras`: count of cameras currently in `running` status.\n"
+        "- `active_cameras`: count of running cameras.\n"
         "- `total_cameras`: total number of added cameras.\n"
-        "- `ai_service_url`: where the service sends frames for analysis.\n"
+        "- `ai_service_url`: where frames are sent for analysis.\n"
         "- `fps`, `resize_width`, `jpeg_quality`: current global defaults."
     ),
 )
@@ -50,8 +50,8 @@ async def get_status(
     summary="Update global settings",
     description=(
         "Allows changing service parameters on the fly.\n\n"
-        "- **ai_service_url**: if changed, the service will immediately start sending frames to the new address.\n"
-        "- **fps**, **resize_width**, **jpeg_quality**: these values will be automatically applied when adding new cameras if no specific parameters are provided for them."
+        "- **ai_service_url**: service will immediately start sending frames to the new address.\n"
+        "- **fps**, **resize_width**, **jpeg_quality**: global defaults for new cameras."
     ),
 )
 async def update_config(

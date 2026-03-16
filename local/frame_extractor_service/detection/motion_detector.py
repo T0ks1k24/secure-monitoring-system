@@ -6,10 +6,10 @@ only cv2 and numpy. Safely tested without pydantic/fastapi.
 """
 from __future__ import annotations
 
-import cv2
 import logging
-import numpy as np
 from typing import Optional
+import cv2
+import numpy as np
 
 from .motion_detector_config import MotionDetectorConfig
 from .motion_state import MotionState

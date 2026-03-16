@@ -1,10 +1,12 @@
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-
+"""Unit tests for the motion detection logic."""
 import unittest
+import os
+import sys
+
 import numpy as np
+
+# Adjust path for local imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from detection.motion_detector import (
     MotionDetector,
@@ -44,6 +46,7 @@ def make_detector(**kw) -> MotionDetector:
 # Basic Logic
 
 class TestBasic(unittest.TestCase):
+    """Basic logic tests for motion detection."""
 
     def test_first_frame_never_triggers(self):
         """The first frame always initializes the background - never triggers motion."""
@@ -68,9 +71,9 @@ class TestBasic(unittest.TestCase):
     def test_reset_clears_background(self):
         d = make_detector()
         d.detect(black(), 0.0)
-        self.assertIsNotNone(d._background)
+        self.assertIsNotNone(d._background)  # pylint: disable=protected-access
         d.reset()
-        self.assertIsNone(d._background)
+        self.assertIsNone(d._background)  # pylint: disable=protected-access
 
     def test_reset_clears_stats(self):
         d = make_detector()
@@ -98,7 +101,7 @@ class TestBasic(unittest.TestCase):
         # (detect() call with disabled is handled in camera_worker, not here)
         # Verify that the background initializes normally
         d.detect(black(), 0.0)
-        self.assertIsNotNone(d._background)
+        self.assertIsNotNone(d._background)  # pylint: disable=protected-access
 
 
 # Consecutive frames
@@ -213,14 +216,15 @@ class TestStats(unittest.TestCase):
 class TestBackgroundModel(unittest.TestCase):
 
     def test_bg_not_updated_during_motion(self):
-        import cv2
+        """Alpha update should be skipped while motion is being detected."""
+        import cv2  # pylint: disable=import-outside-toplevel
         d = make_detector(min_consecutive_frames=1, cooldown_seconds=5.0)
         d.detect(black(), 0.0)
-        before = d._background.copy()
+        before = d._background.copy()  # pylint: disable=protected-access
         d.detect(rect(), 0.1)
         d.detect(rect(), 0.2)
         # Background should not change while there is motion or cooldown
-        self.assertEqual(cv2.absdiff(d._background, before).sum(), 0)
+        self.assertEqual(cv2.absdiff(d._background, before).sum(), 0)  # pylint: disable=protected-access
 
     def test_bg_updates_when_quiet(self):
         """alpha=1.0 -> background is fully replaced by the current frame."""
@@ -236,9 +240,10 @@ class TestBackgroundModel(unittest.TestCase):
         self.assertTrue(d.detect(rect(), 0.3))
 
     def test_bg_matches_frame_shape(self):
+        """Test that the background model adopts the input frame shape."""
         d = make_detector()
         d.detect(black(240, 320), 0.0)
-        self.assertEqual(d._background.shape, (240, 320))
+        self.assertEqual(d._background.shape, (240, 320))  # pylint: disable=protected-access
 
     def test_default_alpha(self):
         self.assertEqual(MotionDetectorConfig().background_update_alpha, 0.05)

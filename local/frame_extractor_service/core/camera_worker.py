@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 class CameraWorker:
     """Worker that continuously reads frames and sends them through a pipeline."""
 
+    # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         config: CameraConfig,
@@ -33,6 +34,7 @@ class CameraWorker:
             Callable[[str, CameraStatus], Awaitable[None]]
         ] = None,
     ) -> None:
+        # pylint: disable=too-many-arguments
         self.config = config
         self.source = source
         self.processors = processors
@@ -113,29 +115,57 @@ class CameraWorker:
         if self._on_status_change:
             await self._on_status_change(self.camera_id, new_status)
 
+    async def _handle_connection(self) -> bool:
+        """Helper to handle connection logic."""
+        if self._status in (CameraStatus.STOPPED, CameraStatus.ERROR):
+            await self._set_status(CameraStatus.CONNECTING)
+
+            connected = await self.source.connect()
+            if not connected:
+                await self._set_status(CameraStatus.ERROR)
+                logger.warning(
+                    "[%s] Cannot connect, retry in %ds",
+                    self.camera_id,
+                    self.reconnect_delay,
+                )
+                await asyncio.sleep(self.reconnect_delay)
+                return False
+
+            await self._set_status(CameraStatus.RUNNING)
+            logger.info("[%s] Connected", self.camera_id)
+        return True
+
+    async def _process_pipeline(self, frame: Any, now: float) -> tuple[bool, Any]:
+        """Helper to run frame through processors."""
+        current_frame = frame
+        for processor in self.processors:
+            keep, processed_frame = processor.process(current_frame, now)
+            if not keep:
+                return False, current_frame
+            if processed_frame is not None:
+                current_frame = processed_frame
+        return True, current_frame
+
+    async def _send_to_sinks(self, frame: Any) -> bool:
+        """Helper to send frame to all sinks."""
+        sink_success = True
+        for sink in self.sinks:
+            success = await sink.send(
+                frame,
+                self.camera_id,
+                self.config.jpeg_quality or 80,
+            )
+            if not success:
+                sink_success = False
+        return sink_success
+
     async def _run(self) -> None:
         last_process_time: float = 0.0
 
         try:
             while not self._stop_event.is_set():
-
-                # Connect
-                if self._status in (CameraStatus.STOPPED, CameraStatus.ERROR):
-                    await self._set_status(CameraStatus.CONNECTING)
-
-                    connected = await self.source.connect()
-                    if not connected:
-                        await self._set_status(CameraStatus.ERROR)
-                        logger.warning(
-                            "[%s] Cannot connect, retry in %ds",
-                            self.camera_id,
-                            self.reconnect_delay,
-                        )
-                        await asyncio.sleep(self.reconnect_delay)
-                        continue
-
-                    await self._set_status(CameraStatus.RUNNING)
-                    logger.info("[%s] Connected", self.camera_id)
+                if not await self._handle_connection():
+                    continue
 
                 # Read frame
                 ret, frame = await self.source.read()
@@ -149,50 +179,31 @@ class CameraWorker:
                     await asyncio.sleep(self.reconnect_delay)
                     continue
 
-                # Throttle: always read, process with the desired FPS
+                # Throttle
                 now = time.monotonic()
                 if (now - last_process_time) < (1.0 / self.fps):
-                    await asyncio.sleep(0)  # yield event loop
+                    await asyncio.sleep(0)
                     continue
                 last_process_time = now
 
-                # Processing Pipeline
-                current_frame = frame
-                should_keep = True
-
-                for processor in self.processors:
-                    keep, processed_frame = processor.process(current_frame, now)
-                    if not keep:
-                        should_keep = False
-                        break
-                    if processed_frame is not None:
-                        current_frame = processed_frame
-
-                if not should_keep:
+                # Processing
+                keep, processed_frame = await self._process_pipeline(frame, now)
+                if not keep:
                     self.stats.frames_skipped += 1
                     continue
 
                 # Sinks
-                sink_success = True
-                for sink in self.sinks:
-                    success = await sink.send(
-                        current_frame,
-                        self.camera_id,
-                        self.config.jpeg_quality or 80,
-                    )
-                    if not success:
-                        sink_success = False
-
-                if sink_success:
+                if await self._send_to_sinks(processed_frame):
                     self.stats.frames_sent += 1
                 else:
                     self.stats.frames_failed += 1
 
         except asyncio.CancelledError:
             pass
-        except Exception:
-            logger.exception("[%s] Unexpected error in worker", self.camera_id)
+        except Exception as e:
+            logger.error("[%s] Unexpected error in worker: %s", self.camera_id, e)
             await self._set_status(CameraStatus.ERROR)
+            raise e
         finally:
             await self.source.release()
             for sink in self.sinks:

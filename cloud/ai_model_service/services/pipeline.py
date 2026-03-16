@@ -18,6 +18,8 @@ from services.rabbitmq_service import rabbitmq_service
 from schemas.events import (
     DetectRequest, DetectResponse, TrackedObject, SecurityEvent, Zone
 )
+from services.visual_renderer import visual_renderer
+from services.frame_storage import frame_storage
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -85,7 +87,14 @@ class AnalyzePipeline:
 
         # 6. Debug візуалізація (якщо включена)
         from services.debug_visualizer import debug_visualizer
-        debug_visualizer.show(frame, zones, confirmed_tracks, security_events)
+        debug_visualizer.show(frame, camera_id, zones, confirmed_tracks, security_events)
+
+        # 7. Збереження кадру (якщо включено)
+        if settings.SAVE_PROCESSED_FRAMES:
+            rendered_frame = visual_renderer.draw_overlays(
+                frame, camera_id, zones, confirmed_tracks, security_events
+            )
+            frame_storage.save_frame(rendered_frame, camera_id, frame_ts)
 
         # 6. Формуємо відповідь
         if security_events:

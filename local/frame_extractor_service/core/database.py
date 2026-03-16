@@ -1,6 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Float, Text
-from sqlalchemy.orm import sessionmaker, declarative_base
 import json
+from sqlalchemy import Column, Integer, String, Boolean, Float, Text
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
@@ -14,7 +14,7 @@ class CameraModel(Base):
     fps = Column(Float, nullable=True)
     resize_width = Column(Integer, nullable=True)
     jpeg_quality = Column(Integer, nullable=True)
-    
+
     # Store MotionConfig as JSON string for simplicity in SQLite
     motion_json = Column(Text, nullable=True)
 

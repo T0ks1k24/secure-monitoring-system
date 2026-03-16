@@ -1,8 +1,9 @@
-import cv2
+import asyncio
 import logging
 from typing import Tuple, Optional
+
+import cv2
 import numpy as np
-import asyncio
 
 from core.interfaces.i_frame_source import IFrameSource
 

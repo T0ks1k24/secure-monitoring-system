@@ -16,11 +16,9 @@ class IFrameProcessor(Protocol):
         Returns (should_keep, modified_frame).
         If should_keep is False, the frame is discarded.
         """
-        ...
 
     def get_stats(self) -> Dict[str, Any]:
         """Return processor-specific statistics."""
-        ...
 
     def update_config(
         self,
@@ -28,4 +26,3 @@ class IFrameProcessor(Protocol):
         motion: Optional[MotionConfig] = None,
     ) -> None:
         """Update processor parameters at runtime without restart."""
-        ...

@@ -1,6 +1,6 @@
 """Tests for AIClient — send_frame, update_endpoint, aclose, _get_client."""
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 
@@ -8,6 +8,7 @@ from core.ai_client import AIClient
 
 
 class TestAIClientSendFrame(unittest.IsolatedAsyncioTestCase):
+    """Test suite for AI client frame sending."""
 
     def setUp(self):
         self.client = AIClient(endpoint="http://ai-test:5000/detect", timeout=2)
@@ -41,7 +42,7 @@ class TestAIClientSendFrame(unittest.IsolatedAsyncioTestCase):
         mock_httpx = AsyncMock()
         mock_httpx.is_closed = False
         mock_httpx.post.side_effect = httpx.TimeoutException("timeout")
-        self.client._client = mock_httpx
+        self.client._client = mock_httpx  # pylint: disable=protected-access
 
         result = await self.client.send_frame(MagicMock(), "cam1")
         self.assertIsNone(result)
@@ -74,7 +75,7 @@ class TestAIClientSendFrame(unittest.IsolatedAsyncioTestCase):
         mock_httpx = AsyncMock()
         mock_httpx.is_closed = False
         mock_httpx.post.side_effect = httpx.RequestError("connection failed")
-        self.client._client = mock_httpx
+        self.client._client = mock_httpx  # pylint: disable=protected-access
 
         result = await self.client.send_frame(MagicMock(), "cam1")
         self.assertIsNone(result)
@@ -88,20 +89,23 @@ class TestAIClientSendFrame(unittest.IsolatedAsyncioTestCase):
 
 
 class TestAIClientUpdateEndpoint(unittest.TestCase):
+    """Test suite for AI client endpoint updates."""
 
     def test_update_endpoint_changes_url(self):
+        """Test that updating the endpoint correctly changes the URL."""
         client = AIClient(endpoint="http://old:5000", timeout=1)
         client.update_endpoint("http://new:6000/v2/detect")
         self.assertEqual(client.endpoint, "http://new:6000/v2/detect")
 
 
 class TestAIClientAclose(unittest.IsolatedAsyncioTestCase):
+    """Test suite for AI client closing."""
 
     async def test_aclose_open_client_closes_and_clears(self):
         client = AIClient(endpoint="http://test", timeout=1)
         mock_httpx = AsyncMock()
         mock_httpx.is_closed = False
-        client._client = mock_httpx
+        client._client = mock_httpx  # pylint: disable=protected-access
 
         await client.aclose()
 
@@ -112,24 +116,26 @@ class TestAIClientAclose(unittest.IsolatedAsyncioTestCase):
         client = AIClient(endpoint="http://test", timeout=1)
         mock_httpx = AsyncMock()
         mock_httpx.is_closed = True
-        client._client = mock_httpx
+        client._client = mock_httpx  # pylint: disable=protected-access
 
         await client.aclose()
         mock_httpx.aclose.assert_not_awaited()
 
     async def test_aclose_none_client_does_nothing(self):
         client = AIClient(endpoint="http://test", timeout=1)
-        client._client = None
+        client._client = None  # pylint: disable=protected-access
         await client.aclose()  # should not raise
 
 
 class TestAIClientGetClient(unittest.TestCase):
+    """Test suite for AI client lazy initialization."""
 
     @patch("core.ai_client.httpx.AsyncClient")
     def test_get_client_lazy_initializes(self, mock_cls):
         client = AIClient(endpoint="http://test", timeout=3)
-        self.assertIsNone(client._client)
-        c = client._get_client()
+        self.assertIsNone(client._client)  # pylint: disable=protected-access
+        c = client._get_client()  # pylint: disable=protected-access
+        self.assertIsNotNone(c)
         mock_cls.assert_called_once_with(timeout=3)
 
     @patch("core.ai_client.httpx.AsyncClient")
@@ -137,9 +143,10 @@ class TestAIClientGetClient(unittest.TestCase):
         client = AIClient(endpoint="http://test", timeout=1)
         mock_instance = MagicMock()
         mock_instance.is_closed = False
-        client._client = mock_instance
+        client._client = mock_instance  # pylint: disable=protected-access
 
-        c = client._get_client()
+        c = client._get_client()  # pylint: disable=protected-access
+        self.assertIs(c, mock_instance)
         self.assertIs(c, mock_instance)
         mock_cls.assert_not_called()
 
@@ -148,9 +155,9 @@ class TestAIClientGetClient(unittest.TestCase):
         client = AIClient(endpoint="http://test", timeout=1)
         mock_closed = MagicMock()
         mock_closed.is_closed = True
-        client._client = mock_closed
+        client._client = mock_closed  # pylint: disable=protected-access
 
-        client._get_client()
+        client._get_client()  # pylint: disable=protected-access
         mock_cls.assert_called_once_with(timeout=1)
 
 

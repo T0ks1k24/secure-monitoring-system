@@ -1,8 +1,7 @@
-import json
 import logging
 from typing import List
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 
 from schemas import CameraConfig, MotionConfig
 from core.interfaces.i_camera_repository import ICameraRepository
@@ -16,23 +15,23 @@ class SQLiteCameraRepository(ICameraRepository):
     def __init__(self, db_url: str):
         self.engine = create_engine(db_url)
         Base.metadata.create_all(self.engine)
-        self.SessionLocal = sessionmaker(bind=self.engine)
+        self.session_local = sessionmaker(bind=self.engine)
 
     def load_all(self) -> List[CameraConfig]:
-        with self.SessionLocal() as session:
+        with self.session_local() as session:
             models = session.query(CameraModel).all()
             return [self._to_schema(m) for m in models]
 
     def save_all(self, cameras: List[CameraConfig]) -> None:
         """Slow bulk update: clears and re-inserts everything."""
-        with self.SessionLocal() as session:
+        with self.session_local() as session:
             session.query(CameraModel).delete()
             for cam in cameras:
                 session.add(self._to_model(cam))
             session.commit()
 
     def add(self, camera: CameraConfig) -> int:
-        with self.SessionLocal() as session:
+        with self.session_local() as session:
             model = self._to_model(camera)
             session.add(model)
             session.commit()
@@ -40,7 +39,7 @@ class SQLiteCameraRepository(ICameraRepository):
             return model.id
 
     def update(self, camera: CameraConfig) -> None:
-        with self.SessionLocal() as session:
+        with self.session_local() as session:
             model = session.query(CameraModel).filter(CameraModel.id == camera.id).first()
             if model:
                 model.rtsp = camera.rtsp
@@ -53,7 +52,7 @@ class SQLiteCameraRepository(ICameraRepository):
                 session.commit()
 
     def delete(self, camera_id: int) -> None:
-        with self.SessionLocal() as session:
+        with self.session_local() as session:
             session.query(CameraModel).filter(CameraModel.id == camera_id).delete()
             session.commit()
 
@@ -61,7 +60,7 @@ class SQLiteCameraRepository(ICameraRepository):
         data = model.to_dict()
         # Ensure motion is correctly parsed into MotionConfig
         if "motion" in data and isinstance(data["motion"], dict):
-             data["motion"] = MotionConfig(**data["motion"])
+            data["motion"] = MotionConfig(**data["motion"])
         return CameraConfig(**data)
 
     def _to_model(self, schema: CameraConfig) -> CameraModel:

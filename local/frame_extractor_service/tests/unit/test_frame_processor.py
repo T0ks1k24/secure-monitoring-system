@@ -1,6 +1,6 @@
 """Tests for MotionDetectorProcessor — resize logic and update_config."""
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import numpy as np
 
@@ -9,6 +9,7 @@ from schemas import MotionConfig
 
 
 class TestFrameProcessorResize(unittest.TestCase):
+    """Test suite for frame resizing in MotionDetectorProcessor."""
 
     def setUp(self):
         self.config = MotionConfig(enabled=False)  # disable motion for resize tests
@@ -31,7 +32,7 @@ class TestFrameProcessorResize(unittest.TestCase):
         mock_resize.return_value = resized
         frame = np.zeros((100, 200, 3), dtype=np.uint8)
 
-        should_send, result = self.processor.process(frame, 0.0)
+        _, _ = self.processor.process(frame, 0.0)
 
         mock_resize.assert_called_once()
         # Check dimensions: target is (100, 50) because aspect ratio 200:100 → 100:50
@@ -42,7 +43,7 @@ class TestFrameProcessorResize(unittest.TestCase):
     def test_no_resize_when_width_already_matches(self, mock_resize):
         frame = np.zeros((50, 100, 3), dtype=np.uint8)  # width=100 matches resize_width=100
 
-        should_send, result = self.processor.process(frame, 0.0)
+        _, _ = self.processor.process(frame, 0.0)
 
         mock_resize.assert_not_called()
 
@@ -59,6 +60,7 @@ class TestFrameProcessorResize(unittest.TestCase):
 
 
 class TestFrameProcessorUpdateConfig(unittest.TestCase):
+    """Test suite for updating MotionDetectorProcessor configuration."""
 
     def test_update_config_changes_resize_width(self):
         config = MotionConfig(enabled=False)
@@ -76,7 +78,7 @@ class TestFrameProcessorUpdateConfig(unittest.TestCase):
         proc.update_config(motion=new_motion)
 
         self.assertEqual(proc.motion_config_schema, new_motion)
-        self.assertEqual(proc._motion_detector.config.min_contour_area, 9000)
+        self.assertEqual(proc._motion_detector.config.min_contour_area, 9000)  # pylint: disable=protected-access
 
     def test_update_config_none_values_do_not_change(self):
         config = MotionConfig(enabled=True)

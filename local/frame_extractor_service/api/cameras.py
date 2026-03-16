@@ -47,7 +47,7 @@ async def get_camera(
     try:
         return manager.get_one(camera_id)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post(
@@ -74,7 +74,7 @@ async def add_camera(
     try:
         return manager.add_camera(body)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.patch(
@@ -96,7 +96,7 @@ async def update_camera(
     try:
         return manager.update_camera(camera_id, body)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.delete(
@@ -112,7 +112,7 @@ async def remove_camera(
     try:
         await manager.remove_camera(camera_id)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post(
@@ -128,7 +128,7 @@ async def start_camera(
     try:
         return manager.start_camera(camera_id)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post(
@@ -144,4 +144,4 @@ async def stop_camera(
     try:
         return await manager.stop_camera(camera_id)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

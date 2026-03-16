@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     # Мінімальна швидкість (px/frame) що вважається «рухом»
     TRAJECTORY_MIN_SPEED_PX: float = 5.0
     
+    # ── Frame saving ──────────────────────────────────────────────
+    # Включає/виключає збереження оброблених кадрів з оверлеями
+    SAVE_PROCESSED_FRAMES: bool = False
+    # Шлях до папки зі збереженими кадрами
+    FRAME_STORAGE_PATH: str = "storage/frames"
+
     # ── Debug ─────────────────────────────────────────────────────
     # Включає/виключає відображення кадрів з результатами (cv2.imshow)
     DEBUG_VISUALIZE: bool = False

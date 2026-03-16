@@ -58,18 +58,18 @@ class CameraManager:
     def add_camera(self, req: CameraAddRequest) -> CameraStatusResponse:
         # Create config without ID first
         cfg = CameraConfig(**req.model_dump())
-        
+
         # Save to repo to get the generated ID
         new_id = self._repo.add(cfg)
         cfg.id = new_id
-        
+
         # Now create and register the worker
         worker = self._factory.create_worker(cfg)
         self._workers[new_id] = worker
-        
+
         if cfg.enabled:
             worker.start()
-            
+
         logger.info("Camera added with ID: %s", new_id)
         return self._build_response(worker)
 
@@ -78,18 +78,18 @@ class CameraManager:
     ) -> CameraStatusResponse:
         worker = self._get_or_raise(camera_id)
         updates = req.model_dump(exclude_none=True)
-        
+
         # Update top-level camera params
         for key, val in updates.items():
             if key != "motion":
                 setattr(worker.config, key, val)
-        
+
         # Partial update for motion config
         if req.motion is not None:
             motion_updates = req.motion.model_dump(exclude_none=True)
             for m_key, m_val in motion_updates.items():
                 setattr(worker.config.motion, m_key, m_val)
-        
+
         worker.update_params(
             fps=updates.get("fps"),
             resize_width=updates.get("resize_width"),

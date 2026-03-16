@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import cv2
-import httpx
 import logging
 from typing import Optional
+
+import cv2
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class AIClient:
         return self._client
 
     def update_endpoint(self, endpoint: str) -> None:
-        """Change the URL of the AI ​​service without recreating the client."""
+        """Change the URL of the AI service without recreating the client."""
         self.endpoint = endpoint
 
     async def aclose(self) -> None:
@@ -36,7 +37,7 @@ class AIClient:
         camera_id: str,
         jpeg_quality: int = 80,
     ) -> Optional[dict]:
-        """Encodes a frame to JPEG and sends it to the AI ​​endpoint. Returns JSON or None."""
+        """Encodes a frame to JPEG and sends it to the AI endpoint. Returns JSON or None."""
         success, buffer = cv2.imencode(
             ".jpg", frame,
             [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality],
