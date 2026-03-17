@@ -77,9 +77,10 @@ async def test_process_with_detections_and_events(pipeline, mock_deps):
     mock_deps["zone_manager"].find_zones_for_object.return_value = [zone]
     
     # Setup Risk Engine
+    from schemas.events import EventType, RiskLevel
     mock_event = MagicMock()
-    mock_event.event_type = "zone_intrusion"
-    mock_event.risk_level = "high"
+    mock_event.event_type = EventType.ZONE_INTRUSION
+    mock_event.risk_level = RiskLevel.HIGH
     mock_event.track_id = 1
     mock_event.zone_name = "Entrance"
     mock_deps["risk_engine"].analyze.return_value = [mock_event]
