@@ -1,42 +1,60 @@
 import { useNavigate } from "react-router-dom";
+import { useGetCamerasQuery } from "../../services/camerasApi";
 import "./CamerasGrid.scss";
-
-import cam1Video from "../../../cameras/cam1.mp4";
-import cam2Video from "../../../cameras/cam2.mp4";
 
 export default function CamerasGrid() {
   const navigate = useNavigate();
+  const { data: cameras = [], isLoading } = useGetCamerasQuery();
 
-  const cameras = [
-    { id: 1, name: "Camera 1", src: cam1Video },
-    { id: 2, name: "Camera 2", src: cam2Video },
-  ];
+  if (isLoading) return <div className="loading">Завантаження камер...</div>;
 
   return (
     <div className="cameras-page">
       <div className="page-header">
-        <button className="settings-btn" onClick={() => navigate("/settings")} title="Налаштування">
+        <button 
+          className="settings-btn" 
+          onClick={() => navigate("/settings")} 
+          title="Налаштування"
+        >
           ⚙️
         </button>
       </div>
+
       <div className="grid">
-        {cameras.map((cam) => (
-          <div
-            key={cam.id}
-            className="camera-card"
-            onClick={() => navigate(`/monitoring/${cam.id}`)}
-          >
-            <video
-              src={cam.src}
-              autoPlay
-              loop
-              muted
-              playsInline
-              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }}
-            />
-            <div className="camera-label">{cam.name}</div>
+        {cameras.length > 0 ? (
+          cameras.map((cam) => {
+            const streamPath = cam.rtsp ? cam.rtsp.split("/").pop() : "";
+
+            return (
+              <div
+                key={cam.id}
+                className="camera-card"
+                onClick={() => navigate(`/monitoring/${cam.id}`)}
+              >
+                <div className="video-container">
+                    <iframe
+                      src={`http://127.0.0.1:8889/${streamPath}`}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        border: "none",
+                        pointerEvents: "none",
+                      }}
+                      allow="autoplay; fullscreen"
+                    />
+                </div>
+                <div className="camera-label">
+                  <span className={`status-dot ${cam.status}`}></span>
+                  {cam.name || `Камера ${cam.id}`}
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="no-cameras">
+            Камер не знайдено. Додайте їх у налаштуваннях.
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

@@ -61,7 +61,12 @@ export default function AddCameraModal({ isOpen, onClose, onSave, initialValues 
 
         onSave(finalData);
         setFormData(defaultData);
+        onClose();
     };
+
+    const InfoIcon = ({ text }) => (
+        <span className="info-tooltip" data-tooltip={text}>?</span>
+    );
 
     return (
         <div className="modal-overlay">
@@ -74,18 +79,6 @@ export default function AddCameraModal({ isOpen, onClose, onSave, initialValues 
                 <form onSubmit={handleSubmit}>
                     <div className="form-grid">
                         <div className="input-group">
-                            <label>Унікальний ID</label>
-                            <input
-                                required
-                                placeholder="напр: entrance"
-                                value={formData.id}
-                                disabled={isEditMode} 
-                                style={isEditMode ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
-                                onChange={e => setFormData({ ...formData, id: e.target.value })}
-                            />
-                        </div>
-
-                        <div className="input-group">
                             <label>Назва камери</label>
                             <input
                                 placeholder="напр: Головний вхід"
@@ -95,7 +88,9 @@ export default function AddCameraModal({ isOpen, onClose, onSave, initialValues 
                         </div>
 
                         <div className="input-group full">
-                            <label>RTSP Потік</label>
+                            <label>RTSP Потік
+                                <InfoIcon text="RTSP stream URL"/>
+                            </label>
                             <input
                                 required
                                 placeholder="rtsp://127.0.0.1:8554/camera1"
@@ -105,17 +100,20 @@ export default function AddCameraModal({ isOpen, onClose, onSave, initialValues 
                         </div>
 
                         <div className="input-group">
-                            <label>FPS</label>
+                            <label>FPS
+                                <InfoIcon text="Frames per second. Recommended: 1.0-5.0 for detection"/>
+                            </label>
                             <input
                                 type="number"
-                                step="0.1"
                                 value={formData.fps}
                                 onChange={e => handleNumberChange('fps', e.target.value, true)}
                             />
                         </div>
 
                         <div className="input-group">
-                            <label>Resize Width (px)</label>
+                            <label>Resize Width (px)
+                                <InfoIcon text="Frame width (px). Recommended: 1280 for quality/speed balance"/>
+                            </label>
                             <input
                                 type="number"
                                 value={formData.resize_width}
@@ -124,7 +122,9 @@ export default function AddCameraModal({ isOpen, onClose, onSave, initialValues 
                         </div>
 
                         <div className="input-group">
-                            <label>Якість JPEG (1-100)</label>
+                            <label>Якість JPEG (1-100)
+                                <InfoIcon text="Frame compression quality for transmission to the browser (1-100)"/>
+                            </label>
                             <input
                                 type="number"
                                 min="1"
