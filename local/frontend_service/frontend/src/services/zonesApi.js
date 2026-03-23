@@ -2,7 +2,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 export const zonesApi = createApi({
     reducerPath: 'zonesApi',
-    baseQuery: fetchBaseQuery({ baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000/' }),
+    baseQuery: fetchBaseQuery({ baseUrl: import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/api/' : '/api/' }),
     tagTypes: ['Zones'],
     endpoints: (builder) => ({
         getZones: builder.query({

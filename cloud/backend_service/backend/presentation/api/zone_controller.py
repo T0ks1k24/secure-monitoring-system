@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from application.services.zone_service import ZoneService
 from application.dto.zone_dto import ZoneCreateDTO, ZoneUpdateDTO
 
-router = APIRouter(prefix="/zones", tags=["Zones"])
+router = APIRouter(prefix="/api/zones", tags=["Zones"])
 
 service = ZoneService()
 

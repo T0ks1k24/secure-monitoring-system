@@ -25,6 +25,6 @@ COPY . .
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-EXPOSE 8080
+EXPOSE 8100
 
-CMD ["uv", "run", "python", "main.py"]
+CMD ["uv", "run", "--no-sync", "python", "main.py"]
