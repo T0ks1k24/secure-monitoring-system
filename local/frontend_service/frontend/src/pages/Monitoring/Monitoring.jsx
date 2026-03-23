@@ -1,37 +1,29 @@
-import { useRef, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useState } from "react";
+import CameraTile from "./CameraTile";
 import "./Monitoring.scss";
 import { 
     useGetZonesQuery, 
     useAddZoneMutation, 
-    useUpdateZoneMutation, 
     useDeleteZoneMutation 
 } from "../../services/zonesApi"; 
+
 import cam1Video from "../../../cameras/cam1.mp4";
 import cam2Video from "../../../cameras/cam2.mp4";
 
-const videoMap = {
-    "1": cam1Video,
-    "2": cam2Video
-};
-
 export default function Monitoring() {
-    const canvasRef = useRef(null);
-    const videoRef = useRef(null);
-    const { cameraId } = useParams();
+    const [selectedCameras, setSelectedCameras] = useState([
+        { id: "1", name: "Камера 1", src: cam1Video },
+        { id: "2", name: "Камера 2", src: cam2Video }
+    ]);
 
-    const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
-
-    const { data: zones = [], isLoading } = useGetZonesQuery(cameraId);
-    const [addZone] = useAddZoneMutation();
-    const [updateZone] = useUpdateZoneMutation();
-    const [deleteZone] = useDeleteZoneMutation();
+    const [activeId, setActiveId] = useState(null);
+    const [focusedId, setFocusedId] = useState(null);
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const [isZoneMenuOpen, setIsZoneMenuOpen] = useState(false);
 
     const [mode, setMode] = useState("view");
     const [currentZone, setCurrentZone] = useState([]);
-    const [isZoneMenuOpen, setIsZoneMenuOpen] = useState(false);
-
-    const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const [selectedZoneId, setSelectedZoneId] = useState(null);
 
     const [zoneForm, setZoneForm] = useState({
         name: "",
@@ -40,356 +32,141 @@ export default function Monitoring() {
         max_people_allowed: ""
     });
 
-    const [selectedZoneId, setSelectedZoneId] = useState(null);
-    const [editingZoneId, setEditingZoneId] = useState(null);
-
-    const resetZoneForm = () => {
-        setZoneForm({
-            name: "",
-            zone_type: "danger",
-            risk_weight: "",
-            max_people_allowed: ""
-        });
-    };
+    const { data: activeZones = [] } = useGetZonesQuery(activeId, { skip: !activeId });
+    const [addZone] = useAddZoneMutation();
+    const [deleteZone] = useDeleteZoneMutation();
 
     const resetDrawState = () => {
         setMode("view");
-        setEditingZoneId(null);
         setCurrentZone([]);
-        resetZoneForm();
-    };
-
-    const handleDeleteZone = async () => {
-        if (selectedZoneId === null) return;
-        try {
-            await deleteZone(selectedZoneId).unwrap();
-            setSelectedZoneId(null);
-            resetDrawState(); 
-        } catch (error) {
-            console.error("Помилка видалення:", error);
-            setSelectedZoneId(null);
-        }
+        setZoneForm({ name: "", zone_type: "danger", risk_weight: "", max_people_allowed: "" });
+        setIsZoneMenuOpen(false);
     };
 
     const handleSaveZone = async () => {
-        const isEdit = mode === "edit";
-        if (!isEdit && currentZone.length < 3) return;
-
-        const existingZone = isEdit ? zones.find(z => z.id === editingZoneId) : null;
-
+        if (currentZone.length < 3) return;
         const payload = {
-            name: zoneForm.name || `Zone ${zones.length + 1}`,
-            camera_id: cameraId,
-            polygon: isEdit 
-                ? existingZone.points.map(([x,y]) => [Math.round(x), Math.round(y)]) 
-                : currentZone.map(([x, y]) => [Math.round(x), Math.round(y)]),
-            zone_type: zoneForm.zone_type || "danger",
+            name: zoneForm.name || `Зона ${activeZones.length + 1}`,
+            camera_id: activeId,
+            polygon: currentZone.map(([x, y]) => [Math.round(x), Math.round(y)]),
+            zone_type: zoneForm.zone_type,
             risk_weight: Number(zoneForm.risk_weight || 40),
             max_people_allowed: Number(zoneForm.max_people_allowed || 0),
             is_active: true
         };
-
         try {
-            if (isEdit) {
-                await updateZone({ id: editingZoneId, ...payload }).unwrap();
-            } else {
-                await addZone(payload).unwrap();
-            }
+            await addZone(payload).unwrap();
             resetDrawState();
-        } catch (error) {
-            console.error("Помилка збереження:", error);
-        }
+        } catch (e) { console.error(e); }
     };
 
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        const video = videoRef.current;
-        if (!canvas || !video) return;
-
-        const resizeCanvas = () => {
-            const newWidth = video.clientWidth;
-            const newHeight = video.clientHeight;
-            if (!newWidth || !newHeight) return;
-            canvas.width = newWidth;
-            canvas.height = newHeight;
-            setCanvasSize({ width: newWidth, height: newHeight });
-        };
-
-        video.addEventListener("loadedmetadata", resizeCanvas);
-        window.addEventListener("resize", resizeCanvas);
-        resizeCanvas();
-
-        return () => {
-            video.removeEventListener("loadedmetadata", resizeCanvas);
-            window.removeEventListener("resize", resizeCanvas);
-        };
-    }, [cameraId]);
-
-    const getCenterOfPolygon = (points) => {
-        if (!points || points.length === 0) return { x: 0, y: 0 };
-        const sumX = points.reduce((acc, point) => acc + point[0], 0);
-        const sumY = points.reduce((acc, point) => acc + point[1], 0);
-        return { x: sumX / points.length, y: sumY / points.length };
-    };
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        zones.forEach(zone => {
-            if (!zone.points || zone.points.length < 2) return;
-
-            if (mode === "edit") {
-                ctx.globalAlpha = zone.id === editingZoneId ? 1.0 : 0.4;
-                ctx.lineWidth = zone.id === editingZoneId ? 4 : 2;
-            } else {
-                ctx.globalAlpha = 1.0;
-                ctx.lineWidth = 2;
-            }
-
-            let color;
-            switch (zone.type) {
-                case "danger": color = "red"; break;
-                case "warning": color = "yellow"; break;
-                case "safe": color = "limegreen"; break;
-                default: color = "gray";
-            }
-
-            ctx.beginPath();
-            ctx.moveTo(zone.points[0][0], zone.points[0][1]);
-            for (let i = 1; i < zone.points.length; i++) {
-                ctx.lineTo(zone.points[i][0], zone.points[i][1]);
-            }
-            if (zone.points.length > 2) ctx.closePath();
-            ctx.strokeStyle = color;
-            ctx.stroke();
-
-            zone.points.forEach(([x, y]) => {
-                ctx.beginPath();
-                ctx.arc(x, y, 4, 0, Math.PI * 2);
-                ctx.fillStyle = color;
-                ctx.fill();
-            });
-
-            if (isZoneMenuOpen) {
-                const center = getCenterOfPolygon(zone.points);
-                ctx.font = "bold 16px sans-serif";
-                ctx.fillStyle = "white";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.shadowColor = "black";
-                ctx.shadowBlur = 4;
-                ctx.shadowOffsetX = 1;
-                ctx.shadowOffsetY = 1;
-                ctx.fillText(zone.name, center.x, center.y);
-                ctx.shadowBlur = 0;
-                ctx.shadowOffsetX = 0;
-                ctx.shadowOffsetY = 0;
-            }
-        });
-
-        ctx.globalAlpha = 1.0;
-
-        if (currentZone.length > 0) {
-            ctx.beginPath();
-            ctx.moveTo(currentZone[0][0], currentZone[0][1]);
-            for (let i = 1; i < currentZone.length; i++) {
-                ctx.lineTo(currentZone[i][0], currentZone[i][1]);
-            }
-            if (currentZone.length > 2) ctx.closePath();
-            ctx.strokeStyle = "red";
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            currentZone.forEach(([x, y]) => {
-                ctx.beginPath();
-                ctx.arc(x, y, 5, 0, Math.PI * 2);
-                ctx.fillStyle = "red";
-                ctx.fill();
-            });
-        }
-    }, [zones, currentZone, isZoneMenuOpen, mode, editingZoneId, canvasSize]);
-
-    const handleCanvasClick = (e) => {
-        if (mode !== "draw") return;
-        const canvas = canvasRef.current;
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        setCurrentZone(prev => [...prev, [x, y]]);
+    const getGridClass = () => {
+        if (focusedId) return "focused-mode";
+        return selectedCameras.length === 2 ? "grid-2" : "grid-4";
     };
 
     return (
-        <>
-            <button 
-                className={`burger-menu ${isPanelOpen ? "open" : ""}`} 
-                onClick={() => setIsPanelOpen(!isPanelOpen)}
-                title={isPanelOpen ? "Сховати панель" : "Налаштування"}
-            >
-                {isPanelOpen ? "✕" : "☰"}
-            </button>
-
-            <div className={`container ${isPanelOpen ? "panel-open" : "panel-closed"}`}>
-                <div className="video-wrapper">
-                    <div className="video-inner">
-                        <video
-                            ref={videoRef}
-                            src={videoMap[cameraId]}
-                            autoPlay
-                            loop
-                            muted
-                            playsInline
-                            style={{ width: "100%", height: "auto", display: "block" }}
-                        />
-                        <canvas
-                            ref={canvasRef}
-                            onClick={handleCanvasClick}
-                            style={{
-                                pointerEvents: mode === "draw" ? "auto" : "none"
+        <div className={`monitoring-container ${isPanelOpen ? "panel-open" : "panel-closed"}`}>
+            <div className="main-content">
+                <main className={`camera-grid ${getGridClass()}`}>
+                    {selectedCameras.map(cam => (
+                        <CameraTile
+                            key={cam.id}
+                            camera={cam}
+                            isPanelOpen={isPanelOpen}
+                            isActive={activeId === cam.id}
+                            isFocused={focusedId === cam.id}
+                            isZoneMenuOpen={isZoneMenuOpen}
+                            currentDrawingPoints={activeId === cam.id ? currentZone : []}
+                            mode={mode}
+                            editingZoneId={null}
+                            onSelect={(id) => {
+                                if (mode === "draw") return;
+                                setActiveId(prev => prev === id ? null : id);
+                                resetDrawState();
                             }}
-                        ></canvas>
-                    </div>
-                </div>
+                            onDoubleClick={(id) => {
+                                if (mode === "draw") return;
+                                setFocusedId(prev => prev === id ? null : id)}
+                            }
+                            onPointAdd={(p) => mode === "draw" && setCurrentZone(prev => [...prev, p])}
+                        />
+                    ))}
+                </main>
 
-                <aside className={`control-panel ${isPanelOpen ? "visible" : "hidden"}`}>
-                    <h2>Керування</h2>
-                    <button className="start-btn">Почати моніторинг</button>
-
-                    <button 
-                        className="zone-btn"
-                        onClick={() => setIsZoneMenuOpen(prev => !prev)}
-                        style={{ marginTop: "15px", backgroundColor: isZoneMenuOpen ? "#475569" : "" }}
-                    >
-                        {isZoneMenuOpen ? "Сховати зони" : "Управління зонами"}
+                <div className="sidebar-trigger">
+                    <button className="burger-btn" onClick={() => setIsPanelOpen(!isPanelOpen)}>
+                        {isPanelOpen ? "✕" : "☰"}
                     </button>
-
-                    {isZoneMenuOpen && (
-                        <div className="zones-manager" style={{ marginTop: "20px" }}>
-                            {mode === "view" && (
-                                <button
-                                    className="zone-btn"
-                                    onClick={() => {
-                                        resetZoneForm();
-                                        setCurrentZone([]);
-                                        setMode("draw");
-                                    }}
-                                >
-                                    + Додати нову зону
-                                </button>
-                            )}
-
-                            {(mode === "draw" || mode === "edit") && (
-                                <div className="draw-actions">
-                                    <div className="zone-form">
-                                        <input
-                                            type="text"
-                                            placeholder="Назва зони"
-                                            value={zoneForm.name}
-                                            onChange={(e) => setZoneForm({ ...zoneForm, name: e.target.value })}
-                                        />
-                                        <select
-                                            value={zoneForm.zone_type}
-                                            onChange={(e) => setZoneForm({ ...zoneForm, zone_type: e.target.value })}
-                                        >
-                                            <option value="danger">Danger</option>
-                                            <option value="warning">Warning</option>
-                                            <option value="safe">Safe</option>
-                                        </select>
-                                        <input
-                                            type="text"
-                                            placeholder="Risk level (0-100)"
-                                            value={zoneForm.risk_weight}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                if (value === "" || (/^\d+$/.test(value) && Number(value) <= 100)) {
-                                                    setZoneForm({ ...zoneForm, risk_weight: value });
-                                                }
-                                            }}
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Max people"
-                                            value={zoneForm.max_people_allowed}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                if (value === "" || /^\d+$/.test(value)) {
-                                                    setZoneForm({ ...zoneForm, max_people_allowed: value });
-                                                }
-                                            }}
-                                        />
-                                    </div>
-
-                                    <button className="zone-btn" onClick={handleSaveZone}>
-                                        {mode === "edit" ? "Зберегти зміни" : "Зберегти"}
-                                    </button>
-
-                                    <button className="zone-btn" onClick={resetDrawState}>
-                                        Скасувати
-                                    </button>
-                                </div>
-                            )}
-
-                            {mode === "view" && zones.length > 0 && (
-                                <div className="zones-list">
-                                    <h3>Існуючі зони:</h3>
-                                    <ul>
-                                        {zones.map(zone => (
-                                            <li key={zone.id} className="zone-item">
-                                                <div className="zone-header">
-                                                    <strong>{zone.name}</strong>
-                                                    <span className="zone-risk">Ризик: {zone.risk_weight || 40}</span>
-                                                </div>
-                                                <div className="zone-actions">
-                                                    <button 
-                                                        className="edit-btn"
-                                                        onClick={() => {
-                                                            setMode("edit");
-                                                            setEditingZoneId(zone.id);
-                                                            setZoneForm({
-                                                                name: zone.name,
-                                                                zone_type: zone.type,
-                                                                risk_weight: String(zone.risk_weight),
-                                                                max_people_allowed: String(zone.max_people_allowed || 0)
-                                                            });
-                                                        }}
-                                                    >
-                                                        ✎ Редаг.
-                                                    </button>
-                                                    <button 
-                                                        className="delete-btn"
-                                                        onClick={() => setSelectedZoneId(zone.id)}
-                                                    >
-                                                        🗑 Видалити
-                                                    </button>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {!isZoneMenuOpen && (
-                        <div className="events-block" style={{ marginTop: "20px" }}>
-                            <h3>Події</h3>
-                            <ul id="events"></ul>
-                        </div>
-                    )}
-                </aside>
+                </div>
             </div>
-            {selectedZoneId !== null && (
+
+            <aside className={`control-panel ${isPanelOpen ? "visible" : ""}`}>
+                <h2>Керування</h2>
+                <button className="start-btn">Почати моніторинг</button>
+
+                {activeId ? (
+                    <div className="panel-content">
+                        <p style={{color: "#94a3b8", marginBottom: "10px"}}>Камера: <strong style={{color: "white"}}>{activeId}</strong></p>
+                        <button className="zone-btn" onClick={() => setIsZoneMenuOpen(!isZoneMenuOpen)}>
+                            {isZoneMenuOpen ? "Сховати зони" : "Управління зонами"}
+                        </button>
+
+                        {isZoneMenuOpen && (
+                            <div className="zones-manager" style={{marginTop: "20px"}}>
+                                {mode === "view" ? (
+                                    <button className="zone-btn" onClick={() => setMode("draw")}>+ Додати нову зону</button>
+                                ) : (
+                                    <div className="draw-actions">
+                                        <div className="zone-form">
+                                            <input type="text" placeholder="Назва" value={zoneForm.name} onChange={e => setZoneForm({...zoneForm, name: e.target.value})} />
+                                            <select value={zoneForm.zone_type} onChange={e => setZoneForm({...zoneForm, zone_type: e.target.value})}>
+                                                <option value="danger">Danger</option>
+                                                <option value="warning">Warning</option>
+                                                <option value="safe">Safe</option>
+                                            </select>
+                                            <input type="text" placeholder="Risk (0-100)" value={zoneForm.risk_weight} onChange={e => setZoneForm({...zoneForm, risk_weight: e.target.value})} />
+                                            <input type="text" placeholder="Max people" value={zoneForm.max_people_allowed} onChange={e => setZoneForm({...zoneForm, max_people_allowed: e.target.value})} />
+                                        </div>
+                                        <button className="zone-btn" onClick={handleSaveZone}>Зберегти</button>
+                                        <button className="zone-btn" onClick={resetDrawState} style={{background: "#475569"}}>Скасувати</button>
+                                    </div>
+                                )}
+
+                                <div className="zones-list">
+                                    {activeZones.map(z => (
+                                        <div key={z.id} className="zone-item">
+                                            <strong style={{color: "white"}}>{z.name}</strong>
+                                            <button onClick={() => setSelectedZoneId(z.id)} style={{background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "16px"}}>🗑</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <p style={{marginTop: "20px", color: "#64748b"}}>Виберіть камеру</p>
+                )}
+
+                {!isZoneMenuOpen && (
+                    <div className="events-block" style={{marginTop: "20px"}}>
+                        <h3 style={{color: "white", fontSize: "16px", marginBottom: "10px"}}>Події</h3>
+                        <ul id="events"></ul>
+                    </div>
+                )}
+            </aside>
+
+            {selectedZoneId && (
                 <div className="modal-overlay">
                     <div className="modal-box">
-                        <p>Ви впевнені що хочете видалити цю зону?</p>
-                        <div className="modal-actions">
-                            <button className="delete-btn" onClick={handleDeleteZone}>Так, видалити</button>
-                            <button className="zone-btn" onClick={() => setSelectedZoneId(null)}>Скасувати</button>
+                        <p style={{marginBottom: "20px"}}>Видалити зону?</p>
+                        <div style={{display: "flex", gap: "10px"}}>
+                            <button className="delete-btn" onClick={async () => { await deleteZone(selectedZoneId); setSelectedZoneId(null); }}>Видалити</button>
+                            <button onClick={() => setSelectedZoneId(null)} style={{flex: 1, padding: "10px", borderRadius: "6px", background: "#475569", color: "white", border: "none", cursor: "pointer"}}>Скасувати</button>
                         </div>
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 }
