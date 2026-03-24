@@ -12,48 +12,90 @@
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     height: 100%;
   }
-
-  &.panel-open .main-content {
-
-  }
 }
 
 .camera-grid {
   flex: 1;
   display: grid;
-  padding: 10px 5px 10px 10px;
-  gap: 5px;
-  align-items: center;
-  justify-items: center;
+  padding: 10px;
+  gap: 10px;
+  height: 100%;
+  width: 100%;
+  align-content: center;
+  justify-content: center;
+  box-sizing: border-box;
 
-  &.grid-1 { grid-template-columns: 1fr; }
-  &.grid-2 { grid-template-columns: 1fr 1fr; }
-  &.grid-4 { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
+  &.grid-1 {
+    grid-template-columns: minmax(0, 0.9fr);
+    .camera-tile { height: fit-content; max-height: 100%; }
+  }
+
+  &.grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    .camera-tile { height: fit-content; }
+  }
+
+  &.grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr); 
+    align-content: stretch;
+    justify-items: stretch;
+
+    .camera-tile { 
+      height: 100%; 
+      min-height: 0;
+    }
+
+    .camera-tile:nth-child(3) {
+      grid-column: 1 / span 2;
+      width: 50%;
+      justify-self: center;
+      .video-inner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+        
+        video {
+          width: auto; 
+          height: 100%; 
+          max-width: 100%;
+          object-fit: contain;
+        }
+      }
+    }
+  }
+
+  &.grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    align-content: stretch;
+    justify-items: stretch;
+    .camera-tile { 
+      height: 100%; 
+      min-height: 0;
+    }
+  }
 
   &.focused-mode {
     grid-template-columns: 4fr 1.2fr;
     align-items: start;
+    justify-content: stretch;
 
     .camera-tile.focused {
       grid-column: 1;
       grid-row: 1 / span 10;
       align-self: center; 
       height: fit-content;
-      
-      .video-inner video {
-        max-height: 90vh;
-        object-fit: contain;
-      }
+      .video-inner video { max-height: 90vh; object-fit: contain; }
     }
 
     .camera-tile:not(.focused) {
       grid-column: 2;
       width: 100%;
       height: fit-content;
-      
-      .video-inner video {
-        max-height: 25vh;
-      }
+      .video-inner video { max-height: 25vh; }
     }
   }
 }
@@ -61,11 +103,10 @@
 .camera-tile {
   position: relative;
   background: #000;
-  border-radius: 0;
   width: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  height: auto;
   overflow: hidden;
 
   &.active { 
@@ -89,12 +130,17 @@
     width: 100%;
     line-height: 0;
     flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     video {
       width: 100%;
-      height: auto;
-      max-height: 85vh;
+      height: 100%;
+      max-height: 100%;
       display: block;
+      object-fit: contain;
     }
 
     canvas {
@@ -105,12 +151,12 @@
     }
   }
 
-
   .camera-label {
+    flex-shrink: 0;
     background: #0f172a;
-    padding: 5px 10px;
+    padding: 3px 10px;
     color: #94a3b8;
-    font-size: 11px;
+    font-size: 10px;
     border-top: 1px solid #1e293b;
     width: 100%;
     box-sizing: border-box;
@@ -150,7 +196,6 @@
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
-  
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   margin-right: -350px;
   visibility: hidden;
@@ -167,25 +212,15 @@
   width: 100%; padding: 10px; border-radius: 6px; border: none;
   color: white; font-weight: 600; cursor: pointer; margin-bottom: 10px;
 }
-.start-btn {
-  background: #2563eb;
-}
-
-.zone-btn {
-  background: #059669;
-}
-
-.delete-btn {
-  background: #ef4444;
-}
+.start-btn { background: #2563eb; }
+.zone-btn { background: #059669; }
+.delete-btn { background: #ef4444; }
 
 .zone-form {
   display: flex;
   flex-direction: column;
   gap: 8px;
-
-  input,
-  select {
+  input, select {
     background: #1e293b;
     border: 1px solid #334155;
     padding: 8px;

@@ -9,11 +9,15 @@ import {
 
 import cam1Video from "../../../cameras/cam1.mp4";
 import cam2Video from "../../../cameras/cam2.mp4";
+import cam3Video from "../../../cameras/cam1.mp4";
+import cam4Video from "../../../cameras/cam2.mp4";
 
 export default function Monitoring() {
     const [selectedCameras, setSelectedCameras] = useState([
         { id: "1", name: "Камера 1", src: cam1Video },
-        { id: "2", name: "Камера 2", src: cam2Video }
+        { id: "2", name: "Камера 2", src: cam2Video },
+        //{ id: "3", name: "Камера 3", src: cam3Video },
+        //{ id: "4", name: "Камера 4", src: cam4Video }
     ]);
 
     const [activeId, setActiveId] = useState(null);
@@ -62,7 +66,10 @@ export default function Monitoring() {
 
     const getGridClass = () => {
         if (focusedId) return "focused-mode";
-        return selectedCameras.length === 2 ? "grid-2" : "grid-4";
+        if (selectedCameras.length === 1) return "grid-1";
+        if (selectedCameras.length === 2) return "grid-2";
+        if (selectedCameras.length === 3) return "grid-3";
+        return "grid-4";
     };
 
     return (
