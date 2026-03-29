@@ -73,8 +73,8 @@ ipcMain.on("window:close", (event) => {
 app.whenReady().then(() => {
     createWindow()
 
-    const testVideo = path.join(__dirname, '../cameras/cam1.mp4');
-    startStream('cam_01', testVideo);
+    // const testVideo = path.join(__dirname, '../cameras/cam1.mp4');
+    // startStream('cam_01', testVideo);
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow()

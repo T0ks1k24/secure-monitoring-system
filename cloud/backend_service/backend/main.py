@@ -13,11 +13,9 @@ from infrastructure.models.event_model import EventModel
 
 # Controllers
 from presentation.api.auth_controller import router as auth_router
-from presentation.api.ai_controller import router as ai_router
 from presentation.api.event_controller import router as event_router
 from presentation.api.zone_controller import router as zone_router
 from presentation.api.server_controller import router as server_router
-from presentation.api.stream_controller import router as stream_router
 
 # WebSocket
 from core.websocket import ws_manager
@@ -25,9 +23,6 @@ from core.websocket import ws_manager
 # Startup services
 from core.server_info import get_server_addresses
 from core.startup import create_default_admin
-
-from streaming.ai_worker import ai_worker
-import asyncio
 
 # GLOBAL READY FLAG
 app_ready = False
@@ -46,8 +41,6 @@ async def lifespan(app: FastAPI):
 
     create_default_admin()
     print("Default admin checked!")
-
-    asyncio.create_task(ai_worker())
 
     try:
         ips = get_server_addresses()
@@ -90,12 +83,10 @@ app.add_middleware(
 )
 
 # INCLUDE ROUTERS
-app.include_router(ai_router)
 app.include_router(event_router)
 app.include_router(zone_router)
 app.include_router(server_router)
 app.include_router(auth_router)
-app.include_router(stream_router)
 
 
 @app.get("/")

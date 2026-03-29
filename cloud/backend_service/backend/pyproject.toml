@@ -12,23 +12,13 @@ dependencies = [
     "pydantic-settings>=2.2.1",
     # Database
     "sqlalchemy>=2.0.30",
-    "alembic>=1.13.1",
     "psycopg2-binary>=2.9.11",
     # Auth
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
     "bcrypt==4.0.1",
-    # Cache / Realtime
-    "redis>=5.0.4",
-    "websockets>=12.0",
-    # Utils
-    "orjson>=3.10.0",
-    "loguru>=0.7.2",
-    "python-multipart>=0.0.22",
-    # AI
-    "ultralytics",
-    "opencv-python-headless>=4.8.0",
-    "numpy",
+    # Networking / Messaging
+    "requests>=2.32.0",
     # Messaging
     "aio-pika>=9.4.1",
 ]

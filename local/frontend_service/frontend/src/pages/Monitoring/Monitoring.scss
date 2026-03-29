@@ -163,7 +163,27 @@
     position: relative;
   }
 }
+.camera-selection-list {
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: #0f172a; }
+  &::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
 
+  .zone-item {
+    border: 1px solid transparent;
+    margin-bottom: 6px;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background: #1e293b;
+      border-color: #334155;
+    }
+    
+    &.selected {
+      background: rgba(37, 99, 235, 0.1);
+      border-color: #2563eb;
+    }
+  }
+}
 .sidebar-trigger {
   width: 36px;
   min-width: 36px;

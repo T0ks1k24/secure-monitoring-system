@@ -1,5 +1,6 @@
 import { useState } from "react";
 import CameraTile from "./CameraTile";
+import CameraSelectionModal from "./CameraSelectionModal";
 import "./Monitoring.scss";
 import { 
     useGetZonesQuery, 
@@ -9,21 +10,28 @@ import {
 
 import cam1Video from "../../../cameras/cam1.mp4";
 import cam2Video from "../../../cameras/cam2.mp4";
-import cam3Video from "../../../cameras/cam1.mp4";
-import cam4Video from "../../../cameras/cam2.mp4";
+
+const ALL_CAMERAS = [
+    { id: "1", name: "Камера 1", src: cam1Video },
+    { id: "2", name: "Камера 2", src: cam2Video },
+    { id: "3", name: "Камера 3", src: cam1Video },
+    { id: "4", name: "Камера 4", src: cam2Video },
+    { id: "5", name: "Камера 5", src: cam1Video },
+    { id: "6", name: "Камера 6", src: cam2Video },
+    { id: "7", name: "Камера 7", src: cam1Video },
+    { id: "8", name: "Камера 8", src: cam2Video },
+    { id: "9", name: "Камера 9", src: cam1Video },
+    { id: "10", name: "Камера 10", src: cam2Video },
+];
 
 export default function Monitoring() {
-    const [selectedCameras, setSelectedCameras] = useState([
-        { id: "1", name: "Камера 1", src: cam1Video },
-        { id: "2", name: "Камера 2", src: cam2Video },
-        //{ id: "3", name: "Камера 3", src: cam3Video },
-        //{ id: "4", name: "Камера 4", src: cam4Video }
-    ]);
+    const [selectedCameras, setSelectedCameras] = useState(ALL_CAMERAS.slice(0, 2));
 
     const [activeId, setActiveId] = useState(null);
     const [focusedId, setFocusedId] = useState(null);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [isZoneMenuOpen, setIsZoneMenuOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const [mode, setMode] = useState("view");
     const [currentZone, setCurrentZone] = useState([]);
@@ -62,6 +70,13 @@ export default function Monitoring() {
             await addZone(payload).unwrap();
             resetDrawState();
         } catch (e) { console.error(e); }
+    };
+
+    const handleSaveCameras = (newSelection) => {
+        setSelectedCameras(newSelection);
+        setIsModalOpen(false);
+        setActiveId(null);
+        setFocusedId(null);
     };
 
     const getGridClass = () => {
@@ -110,6 +125,9 @@ export default function Monitoring() {
 
             <aside className={`control-panel ${isPanelOpen ? "visible" : ""}`}>
                 <h2>Керування</h2>
+                <button className="start-btn" onClick={() => setIsModalOpen(true)}>
+                    + Налаштувати камери
+                </button>
                 <button className="start-btn">Почати моніторинг</button>
 
                 {activeId ? (
@@ -173,6 +191,14 @@ export default function Monitoring() {
                         </div>
                     </div>
                 </div>
+            )}
+            {isModalOpen && (
+                <CameraSelectionModal
+                    allCameras={ALL_CAMERAS}
+                    selectedCameras={selectedCameras}
+                    onClose={() => setIsModalOpen(false)}
+                    onSave={handleSaveCameras}
+                />
             )}
         </div>
     );
