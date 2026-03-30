@@ -61,12 +61,19 @@ export default function Monitoring() {
         const isEdit = mode === "edit";
         if (!isEdit && currentZone.length < 3) return;
 
+        const canvas = document.querySelector('.camera-tile.active canvas');
+        if (!canvas) return;
+
+        const { width, height } = canvas;
+
+        const pointsToSave = isEdit
+            ? activeZones.find(z => z.id === editingZoneId)?.points
+            : currentZone.map(([x, y]) => [x / width, y / height]);
+
         const payload = {
             name: zoneForm.name || `Зона ${activeZones.length + 1}`,
             camera_id: activeId,
-            polygon: isEdit 
-                ? activeZones.find(z => z.id === editingZoneId)?.points 
-                : currentZone.map(([x, y]) => [Math.round(x), Math.round(y)]),
+            polygon: pointsToSave,
             zone_type: zoneForm.zone_type,
             risk_weight: Number(zoneForm.risk_weight || 40),
             max_people_allowed: Number(zoneForm.max_people_allowed || 0),

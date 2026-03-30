@@ -1,4 +1,4 @@
-import { useRef, useEffect, useLayoutEffect } from "react";
+import { useRef, useEffect, useLayoutEffect, useState } from "react";
 import { useGetZonesQuery } from "../../services/zonesApi";
 
 const getCenterOfPolygon = (points) => {
@@ -16,6 +16,7 @@ export default function CameraTile({
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const clickTimer = useRef(null);
+    const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
     const { data: zones = [] } = useGetZonesQuery(camera.id);
 
     useLayoutEffect(() => {
@@ -27,6 +28,7 @@ export default function CameraTile({
             const { width, height } = video.getBoundingClientRect();
             canvas.width = width;
             canvas.height = height;
+            setCanvasSize({ width, height });
         };
         const resizeObserver = new ResizeObserver(() => updateSize());
         resizeObserver.observe(video);
@@ -44,6 +46,12 @@ export default function CameraTile({
         if (isActive) {
             zones.forEach(zone => {
                 if (!zone.points || zone.points.length < 2) return;
+                const { width, height } = canvas;
+
+                let color = "red";
+                if (zone.type === "warning") color = "yellow";
+                else if (zone.type === "safe") color = "limegreen";
+
                 if (mode === "edit") {
                     ctx.globalAlpha = zone.id === editingZoneId ? 1.0 : 0.4;
                     ctx.lineWidth = zone.id === editingZoneId ? 4 : 2;
@@ -52,29 +60,25 @@ export default function CameraTile({
                     ctx.lineWidth = 2;
                 }
 
-                let color = "red";
-                if (zone.type === "warning") color = "yellow";
-                if (zone.type === "safe") color = "limegreen";
-                if (zone.type === "danger") color = "red";
-
                 ctx.beginPath();
-                ctx.moveTo(zone.points[0][0], zone.points[0][1]);
+                ctx.moveTo(zone.points[0][0] * width, zone.points[0][1] * height);
                 for (let i = 1; i < zone.points.length; i++) {
-                    ctx.lineTo(zone.points[i][0], zone.points[i][1]);
+                    ctx.lineTo(zone.points[i][0] * width, zone.points[i][1] * height);
                 }
                 if (zone.points.length > 2) ctx.closePath();
                 ctx.strokeStyle = color;
                 ctx.stroke();
 
-                zone.points.forEach(([x, y]) => {
+                zone.points.forEach(([relX, relY]) => {
                     ctx.beginPath();
-                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.arc(relX * width, relY * height, 4, 0, Math.PI * 2);
                     ctx.fillStyle = color;
                     ctx.fill();
                 });
 
                 if (isZoneMenuOpen) {
-                    const center = getCenterOfPolygon(zone.points);
+                    const absPoints = zone.points.map(([rx, ry]) => [rx * width, ry * height]);
+                    const center = getCenterOfPolygon(absPoints);
                     ctx.font = "bold 16px sans-serif";
                     ctx.fillStyle = "white";
                     ctx.textAlign = "center";
@@ -113,7 +117,7 @@ export default function CameraTile({
                 });
             }
         }
-    }, [zones, isActive, isZoneMenuOpen, currentDrawingPoints, mode, editingZoneId]);
+    }, [zones, isActive, isZoneMenuOpen, currentDrawingPoints, mode, editingZoneId, canvasSize]);
 
     const handleClicks = (e, type) => {
         e.stopPropagation();

@@ -5,7 +5,7 @@ from typing import List
 class ZoneBaseDTO(BaseModel):
     name: str
     camera_id: str
-    polygon: List[List[int]]
+    polygon: List[List[float]]
     zone_type: str
     risk_weight: float
     is_active: bool
@@ -21,7 +21,7 @@ class ZoneCreateDTO(ZoneBaseDTO):
 class ZoneUpdateDTO(BaseModel):
     name: str | None = None
     camera_id: str | None = None
-    polygon: List[List[int]] | None = None
+    polygon: List[List[float]] | None = None
     zone_type: str | None = None
     risk_weight: float | None = None
     is_active: bool | None = None

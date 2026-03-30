@@ -80,7 +80,7 @@
 
   &.focused-mode {
     grid-template-columns: 4fr 1.2fr;
-    align-items: start;
+    align-items: center;
     justify-content: stretch;
 
     .camera-tile.focused {
