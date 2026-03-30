@@ -15,6 +15,7 @@ export default function CameraTile({
 }) {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
+    const clickTimer = useRef(null);
     const { data: zones = [] } = useGetZonesQuery(camera.id);
 
     useLayoutEffect(() => {
@@ -51,13 +52,10 @@ export default function CameraTile({
                     ctx.lineWidth = 2;
                 }
 
-                let color;
-                switch (zone.zone_type) {
-                    case "danger": color = "red"; break;
-                    case "warning": color = "yellow"; break;
-                    case "safe": color = "limegreen"; break;
-                    default: color = "red";
-                }
+                let color = "red";
+                if (zone.type === "warning") color = "yellow";
+                if (zone.type === "safe") color = "limegreen";
+                if (zone.type === "danger") color = "red";
 
                 ctx.beginPath();
                 ctx.moveTo(zone.points[0][0], zone.points[0][1]);
@@ -117,30 +115,43 @@ export default function CameraTile({
         }
     }, [zones, isActive, isZoneMenuOpen, currentDrawingPoints, mode, editingZoneId]);
 
+    const handleClicks = (e, type) => {
+        e.stopPropagation();
+
+        if (mode === "draw") {
+            if (type === 'single') {
+                const rect = canvasRef.current.getBoundingClientRect();
+                onPointAdd([e.clientX - rect.left, e.clientY - rect.top]);
+            }
+            return;
+        }
+
+        if (type === 'single') {
+            if (clickTimer.current) {
+                clearTimeout(clickTimer.current);
+            }
+            clickTimer.current = setTimeout(() => {
+                onSelect(camera.id);
+                clickTimer.current = null;
+            }, 200);
+        } else if (type === 'double') {
+            if (clickTimer.current) {
+                clearTimeout(clickTimer.current);
+                clickTimer.current = null;
+            }
+            onDoubleClick(camera.id);
+        }
+    };
+
     return (
         <div 
             className={`camera-tile ${isActive ? 'active' : ''} ${isFocused ? 'focused' : ''}`}
-            onClick={() => onSelect(camera.id)}
-            onDoubleClick={() => onDoubleClick(camera.id)}
+            onClick={(e) => handleClicks(e, 'single')}
+            onDoubleClick={(e) => handleClicks(e, 'double')}
         >
             <div className="video-inner">
                 <video ref={videoRef} src={camera.src} autoPlay loop muted playsInline />
-                <canvas
-                    ref={canvasRef}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (mode === "draw") {
-                            const rect = canvasRef.current.getBoundingClientRect();
-                            onPointAdd([e.clientX - rect.left, e.clientY - rect.top]);
-                        } else {
-                            onSelect(camera.id);
-                        }
-                    }}
-                    onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        onDoubleClick(camera.id);
-                    }} 
-                />
+                <canvas ref={canvasRef} />
             </div>
             <div className="camera-label">{camera.name || `Камера ${camera.id}`}</div>
         </div>

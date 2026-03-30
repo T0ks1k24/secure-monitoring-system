@@ -4,7 +4,8 @@ import CameraSelectionModal from "./CameraSelectionModal";
 import "./Monitoring.scss";
 import { 
     useGetZonesQuery, 
-    useAddZoneMutation, 
+    useAddZoneMutation,
+    useUpdateZoneMutation, 
     useDeleteZoneMutation 
 } from "../../services/zonesApi"; 
 
@@ -26,7 +27,6 @@ const ALL_CAMERAS = [
 
 export default function Monitoring() {
     const [selectedCameras, setSelectedCameras] = useState(ALL_CAMERAS.slice(0, 2));
-
     const [activeId, setActiveId] = useState(null);
     const [focusedId, setFocusedId] = useState(null);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -36,6 +36,7 @@ export default function Monitoring() {
     const [mode, setMode] = useState("view");
     const [currentZone, setCurrentZone] = useState([]);
     const [selectedZoneId, setSelectedZoneId] = useState(null);
+    const [editingZoneId, setEditingZoneId] = useState(null);
 
     const [zoneForm, setZoneForm] = useState({
         name: "",
@@ -47,27 +48,37 @@ export default function Monitoring() {
     const { data: activeZones = [] } = useGetZonesQuery(activeId, { skip: !activeId });
     const [addZone] = useAddZoneMutation();
     const [deleteZone] = useDeleteZoneMutation();
+    const [updateZone] = useUpdateZoneMutation();
 
     const resetDrawState = () => {
         setMode("view");
+        setEditingZoneId(null);
         setCurrentZone([]);
         setZoneForm({ name: "", zone_type: "danger", risk_weight: "", max_people_allowed: "" });
-        setIsZoneMenuOpen(false);
     };
 
     const handleSaveZone = async () => {
-        if (currentZone.length < 3) return;
+        const isEdit = mode === "edit";
+        if (!isEdit && currentZone.length < 3) return;
+
         const payload = {
             name: zoneForm.name || `Зона ${activeZones.length + 1}`,
             camera_id: activeId,
-            polygon: currentZone.map(([x, y]) => [Math.round(x), Math.round(y)]),
+            polygon: isEdit 
+                ? activeZones.find(z => z.id === editingZoneId)?.points 
+                : currentZone.map(([x, y]) => [Math.round(x), Math.round(y)]),
             zone_type: zoneForm.zone_type,
             risk_weight: Number(zoneForm.risk_weight || 40),
             max_people_allowed: Number(zoneForm.max_people_allowed || 0),
             is_active: true
         };
+
         try {
-            await addZone(payload).unwrap();
+            if (isEdit) {
+                await updateZone({ id: editingZoneId, ...payload }).unwrap();
+            } else {
+                await addZone(payload).unwrap();
+            }
             resetDrawState();
         } catch (e) { console.error(e); }
     };
@@ -101,16 +112,16 @@ export default function Monitoring() {
                             isZoneMenuOpen={isZoneMenuOpen}
                             currentDrawingPoints={activeId === cam.id ? currentZone : []}
                             mode={mode}
-                            editingZoneId={null}
+                            editingZoneId={editingZoneId}
                             onSelect={(id) => {
-                                if (mode === "draw") return;
+                                if (mode !== "view") return;
                                 setActiveId(prev => prev === id ? null : id);
                                 resetDrawState();
                             }}
                             onDoubleClick={(id) => {
-                                if (mode === "draw") return;
-                                setFocusedId(prev => prev === id ? null : id)}
-                            }
+                                if (mode !== "view" || selectedCameras.length === 1) return;
+                                setFocusedId(prev => prev === id ? null : id);
+                            }}
                             onPointAdd={(p) => mode === "draw" && setCurrentZone(prev => [...prev, p])}
                         />
                     ))}
@@ -125,22 +136,50 @@ export default function Monitoring() {
 
             <aside className={`control-panel ${isPanelOpen ? "visible" : ""}`}>
                 <h2>Керування</h2>
-                <button className="start-btn" onClick={() => setIsModalOpen(true)}>
-                    + Налаштувати камери
-                </button>
+                <button className="start-btn" onClick={() => setIsModalOpen(true)}>+ Налаштувати камери</button>
                 <button className="start-btn">Почати моніторинг</button>
 
                 {activeId ? (
                     <div className="panel-content">
                         <p style={{color: "#94a3b8", marginBottom: "10px"}}>Камера: <strong style={{color: "white"}}>{activeId}</strong></p>
-                        <button className="zone-btn" onClick={() => setIsZoneMenuOpen(!isZoneMenuOpen)}>
+                        <button className="zone-btn" onClick={() => { setIsZoneMenuOpen(!isZoneMenuOpen); resetDrawState(); }}>
                             {isZoneMenuOpen ? "Сховати зони" : "Управління зонами"}
                         </button>
 
                         {isZoneMenuOpen && (
-                            <div className="zones-manager" style={{marginTop: "20px"}}>
+                            <div className="zones-manager">
                                 {mode === "view" ? (
-                                    <button className="zone-btn" onClick={() => setMode("draw")}>+ Додати нову зону</button>
+                                    <>
+                                        <button className="zone-btn" onClick={() => setMode("draw")}>+ Додати нову зону</button>
+                                        {activeZones.length > 0 && (
+                                            <div className="zones-list">
+                                                <h3>Існуючі зони:</h3>
+                                                <ul>
+                                                    {activeZones.map(zone => (
+                                                        <li key={zone.id} className="zone-item">
+                                                            <div className="zone-info">
+                                                                <strong>{zone.name}</strong>
+                                                                <span>Ризик: {zone.risk_weight}</span>
+                                                            </div>
+                                                            <div className="zone-actions">
+                                                                <button className="edit-mini" onClick={() => {
+                                                                    setMode("edit");
+                                                                    setEditingZoneId(zone.id);
+                                                                    setZoneForm({
+                                                                        name: zone.name,
+                                                                        zone_type: zone.type,
+                                                                        risk_weight: String(zone.risk_weight),
+                                                                        max_people_allowed: String(zone.max_people_allowed)
+                                                                    });
+                                                                }}>✎</button>
+                                                                <button className="delete-mini" onClick={() => setSelectedZoneId(zone.id)}>🗑</button>
+                                                            </div>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </>
                                 ) : (
                                     <div className="draw-actions">
                                         <div className="zone-form">
@@ -150,28 +189,17 @@ export default function Monitoring() {
                                                 <option value="warning">Warning</option>
                                                 <option value="safe">Safe</option>
                                             </select>
-                                            <input type="text" placeholder="Risk (0-100)" value={zoneForm.risk_weight} onChange={e => setZoneForm({...zoneForm, risk_weight: e.target.value})} />
-                                            <input type="text" placeholder="Max people" value={zoneForm.max_people_allowed} onChange={e => setZoneForm({...zoneForm, max_people_allowed: e.target.value})} />
+                                            <input type="text" placeholder="Ризик" value={zoneForm.risk_weight} onChange={e => setZoneForm({...zoneForm, risk_weight: e.target.value})} />
+                                            <input type="text" placeholder="Макс. людей" value={zoneForm.max_people_allowed} onChange={e => setZoneForm({...zoneForm, max_people_allowed: e.target.value})} />
                                         </div>
-                                        <button className="zone-btn" onClick={handleSaveZone}>Зберегти</button>
-                                        <button className="zone-btn" onClick={resetDrawState} style={{background: "#475569"}}>Скасувати</button>
+                                        <button className="zone-btn" onClick={handleSaveZone}>{mode === "edit" ? "Зберегти зміни" : "Зберегти"}</button>
+                                        <button className="zone-btn" style={{background: "#475569"}} onClick={resetDrawState}>Скасувати</button>
                                     </div>
                                 )}
-
-                                <div className="zones-list">
-                                    {activeZones.map(z => (
-                                        <div key={z.id} className="zone-item">
-                                            <strong style={{color: "white"}}>{z.name}</strong>
-                                            <button onClick={() => setSelectedZoneId(z.id)} style={{background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "16px"}}>🗑</button>
-                                        </div>
-                                    ))}
-                                </div>
                             </div>
                         )}
                     </div>
-                ) : (
-                    <p style={{marginTop: "20px", color: "#64748b"}}>Виберіть камеру</p>
-                )}
+                ) : <p style={{marginTop: "20px", color: "#64748b"}}>Виберіть камеру</p>}
 
                 {!isZoneMenuOpen && (
                     <div className="events-block" style={{marginTop: "20px"}}>
@@ -184,14 +212,15 @@ export default function Monitoring() {
             {selectedZoneId && (
                 <div className="modal-overlay">
                     <div className="modal-box">
-                        <p style={{marginBottom: "20px"}}>Видалити зону?</p>
-                        <div style={{display: "flex", gap: "10px"}}>
+                        <p>Ви впевнені, що хочете видалити цю зону?</p>
+                        <div className="modal-actions">
                             <button className="delete-btn" onClick={async () => { await deleteZone(selectedZoneId); setSelectedZoneId(null); }}>Видалити</button>
-                            <button onClick={() => setSelectedZoneId(null)} style={{flex: 1, padding: "10px", borderRadius: "6px", background: "#475569", color: "white", border: "none", cursor: "pointer"}}>Скасувати</button>
+                            <button className="zone-btn" style={{background: "#475569"}} onClick={() => setSelectedZoneId(null)}>Скасувати</button>
                         </div>
                     </div>
                 </div>
             )}
+            
             {isModalOpen && (
                 <CameraSelectionModal
                     allCameras={ALL_CAMERAS}
