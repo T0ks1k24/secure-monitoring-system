@@ -79,23 +79,35 @@
   }
 
   &.focused-mode {
-    grid-template-columns: 4fr 1.2fr;
-    align-items: center;
-    justify-content: stretch;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding-top: 60px;
 
     .camera-tile.focused {
-      grid-column: 1;
-      grid-row: 1 / span 10;
-      align-self: center; 
+      flex: 4;
       height: fit-content;
-      .video-inner video { max-height: 90vh; object-fit: contain; }
+
+      .video-inner video {
+        max-height: 90vh;
+        object-fit: contain;
+      }
     }
 
-    .camera-tile:not(.focused) {
-      grid-column: 2;
-      width: 100%;
-      height: fit-content;
-      .video-inner video { max-height: 25vh; }
+    .side-cameras {
+      flex: 1.2;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+
+      .camera-tile {
+        width: 100%;
+        height: fit-content;
+
+        .video-inner video {
+          max-height: 25vh;
+        }
+      }
     }
   }
 }

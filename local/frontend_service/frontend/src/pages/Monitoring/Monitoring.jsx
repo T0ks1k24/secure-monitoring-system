@@ -105,33 +105,43 @@ export default function Monitoring() {
         return "grid-4";
     };
 
+    const getTileProps = (cam) => ({
+        key: cam.id,
+        camera: cam,
+        isPanelOpen,
+        isActive: activeId === cam.id,
+        isFocused: focusedId === cam.id,
+        isZoneMenuOpen,
+        currentDrawingPoints: activeId === cam.id ? currentZone : [],
+        mode,
+        editingZoneId,
+        onSelect: (id) => { if (mode !== "view") return; setActiveId(prev => prev === id ? null : id); resetDrawState(); },
+        onDoubleClick: (id) => { if (mode !== "view" || selectedCameras.length === 1) return; setFocusedId(prev => prev === id ? null : id); },
+        onPointAdd: (p) => mode === "draw" && setCurrentZone(prev => [...prev, p]),
+    });
+
     return (
         <div className={`monitoring-container ${isPanelOpen ? "panel-open" : "panel-closed"}`}>
             <div className="main-content">
                 <main className={`camera-grid ${getGridClass()}`}>
-                    {selectedCameras.map(cam => (
-                        <CameraTile
-                            key={cam.id}
-                            camera={cam}
-                            isPanelOpen={isPanelOpen}
-                            isActive={activeId === cam.id}
-                            isFocused={focusedId === cam.id}
-                            isZoneMenuOpen={isZoneMenuOpen}
-                            currentDrawingPoints={activeId === cam.id ? currentZone : []}
-                            mode={mode}
-                            editingZoneId={editingZoneId}
-                            onSelect={(id) => {
-                                if (mode !== "view") return;
-                                setActiveId(prev => prev === id ? null : id);
-                                resetDrawState();
-                            }}
-                            onDoubleClick={(id) => {
-                                if (mode !== "view" || selectedCameras.length === 1) return;
-                                setFocusedId(prev => prev === id ? null : id);
-                            }}
-                            onPointAdd={(p) => mode === "draw" && setCurrentZone(prev => [...prev, p])}
-                        />
-                    ))}
+                    {focusedId ? (
+                        <>
+                            {selectedCameras.find(cam => cam.id === focusedId) && (
+                                <CameraTile
+                                    {...getTileProps(selectedCameras.find(cam => cam.id === focusedId))}
+                                    isFocused={true}
+                                />
+                            )}
+                            <div className="side-cameras">
+                                {selectedCameras
+                                    .filter(cam => cam.id !== focusedId)
+                                    .map(cam => <CameraTile key={cam.id} {...getTileProps(cam)} isFocused={false} />)
+                                }
+                            </div>
+                        </>
+                    ) : (
+                        selectedCameras.map(cam => <CameraTile key={cam.id} {...getTileProps(cam)} />)
+                    )}
                 </main>
 
                 <div className="sidebar-trigger">
