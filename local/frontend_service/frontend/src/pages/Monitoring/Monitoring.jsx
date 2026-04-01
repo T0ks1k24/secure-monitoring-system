@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import CameraTile from "./CameraTile";
 import CameraSelectionModal from "./CameraSelectionModal";
 import "./Monitoring.scss";
@@ -38,6 +38,9 @@ export default function Monitoring() {
     const [selectedZoneId, setSelectedZoneId] = useState(null);
     const [editingZoneId, setEditingZoneId] = useState(null);
 
+    const [isKiosk, setIsKiosk] = useState(false);
+    const [showExitBtn, setShowExitBtn] = useState(false);
+
     const [zoneForm, setZoneForm] = useState({
         name: "",
         zone_type: "danger",
@@ -49,6 +52,28 @@ export default function Monitoring() {
     const [addZone] = useAddZoneMutation();
     const [deleteZone] = useDeleteZoneMutation();
     const [updateZone] = useUpdateZoneMutation();
+
+    const exitKiosk = useCallback(() => {
+        window.windowAPI.toggleKiosk();
+        setIsKiosk(false);
+        setShowExitBtn(false);
+        document.body.classList.remove("kiosk-mode");
+    }, []);
+
+    useEffect(() => {
+        window.windowAPI.onKioskChange((val) => {
+            setIsKiosk(val);
+            document.body.classList.toggle("kiosk-mode", val);
+        });
+    }, []);
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === "Escape") exitKiosk();
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [exitKiosk]);
 
     const resetDrawState = () => {
         setMode("view");
@@ -106,7 +131,6 @@ export default function Monitoring() {
     };
 
     const getTileProps = (cam) => ({
-        key: cam.id,
         camera: cam,
         isPanelOpen,
         isActive: activeId === cam.id,
@@ -245,6 +269,19 @@ export default function Monitoring() {
                     onClose={() => setIsModalOpen(false)}
                     onSave={handleSaveCameras}
                 />
+            )}
+            {isKiosk && (
+                <div
+                    className="kiosk-exit-zone"
+                    onMouseEnter={() => setShowExitBtn(true)}
+                    onMouseLeave={() => setShowExitBtn(false)}
+                >
+                    {showExitBtn && (
+                        <button onClick={exitKiosk}>
+                            ✕
+                        </button>
+                    )}
+                </div>
             )}
         </div>
     );

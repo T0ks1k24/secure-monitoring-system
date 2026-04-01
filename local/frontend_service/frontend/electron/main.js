@@ -49,6 +49,14 @@ const getWindowFromEvent = (event) => {
   return BrowserWindow.fromWebContents(event.sender);
 };
 
+ipcMain.on("window:kiosk", (event) => {
+  const win = getWindowFromEvent(event);
+  if (!win) return;
+  const isKiosk = win.isKiosk();
+  win.setKiosk(!isKiosk);
+  event.sender.send("kiosk-changed", !isKiosk);
+});
+
 ipcMain.on("window:minimize", (event) => {
   const win = getWindowFromEvent(event);
   if (win) win.minimize();

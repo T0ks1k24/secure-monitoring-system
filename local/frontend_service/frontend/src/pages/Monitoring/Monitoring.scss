@@ -240,6 +240,36 @@
   h2 { color: white; margin-bottom: 20px; font-size: 18px; }
 }
 
+.kiosk-exit-zone {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 60px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    button {
+        background: rgba(0, 0, 0, 0.75);
+        color: white;
+        border: 1px solid #334155;
+        padding: 10px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        backdrop-filter: blur(4px);
+        white-space: nowrap;
+
+        &:hover {
+            background: rgba(239, 68, 68, 0.85);
+            border-color: #ef4444;
+        }
+    }
+}
+
 .start-btn, .zone-btn, .delete-btn {
   width: 100%; padding: 10px; border-radius: 6px; border: none;
   color: white; font-weight: 600; cursor: pointer; margin-bottom: 10px;
