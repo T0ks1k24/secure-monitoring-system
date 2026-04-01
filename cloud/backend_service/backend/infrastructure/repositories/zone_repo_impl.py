@@ -41,10 +41,10 @@ class ZoneRepositoryImpl:
             db.close()
             return None
 
-        zone.name = data.name
-        zone.polygon = data.polygon
-        zone.zone_type = data.zone_type
-        zone.risk_weight = data.risk_weight
+        updates = data.model_dump(exclude_none=True)
+        for field, value in updates.items():
+            if hasattr(zone, field):
+                setattr(zone, field, value)
 
         db.commit()
         db.refresh(zone)

@@ -19,7 +19,9 @@ class Settings(BaseSettings):
 
     # RABBITMQ
     RABBITMQ_URL: str = "amqp://guest:guest@rabbitmq:5672/"
+    EVENTS_EXCHANGE: str = "security.events"
     ZONES_EXCHANGE: str = "security.zones"
+    EVENTS_QUEUE: str = "backend.events"
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -2,6 +2,79 @@ version: "3.9"
 
 services:
   # CLOUD COMPONENTS
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mediamtx_service
+    restart: unless-stopped
+    ports:
+      - "8554:8554"
+      - "8888:8888"
+      - "8889:8889"
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    networks:
+      - security_net
+
+  camera_publisher_cam1:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    container_name: camera_publisher_cam1
+    restart: unless-stopped
+    depends_on:
+      - mediamtx
+    command:
+      - -re
+      - -stream_loop
+      - "-1"
+      - -i
+      - /videos/cam1.mp4
+      - -c:v
+      - libx264
+      - -preset
+      - ultrafast
+      - -tune
+      - zerolatency
+      - -pix_fmt
+      - yuv420p
+      - -f
+      - rtsp
+      - -rtsp_transport
+      - tcp
+      - rtsp://mediamtx:8554/camera1
+    volumes:
+      - ./video:/videos:ro
+    networks:
+      - security_net
+
+  camera_publisher_cam2:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    container_name: camera_publisher_cam2
+    restart: unless-stopped
+    depends_on:
+      - mediamtx
+    command:
+      - -re
+      - -stream_loop
+      - "-1"
+      - -i
+      - /videos/cam2.mp4
+      - -c:v
+      - libx264
+      - -preset
+      - ultrafast
+      - -tune
+      - zerolatency
+      - -pix_fmt
+      - yuv420p
+      - -f
+      - rtsp
+      - -rtsp_transport
+      - tcp
+      - rtsp://mediamtx:8554/camera2
+    volumes:
+      - ./video:/videos:ro
+    networks:
+      - security_net
+
   postgres:
     image: postgres:16
     container_name: postgres_service
@@ -74,6 +147,7 @@ services:
       - "5000:5000"
     environment:
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+      BACKEND_API_URL: http://backend:8000
     networks:
       - security_net
 
@@ -85,6 +159,7 @@ services:
     restart: unless-stopped
     depends_on:
       - ai_service
+      - mediamtx
     volumes:
       - ./local/frame_extractor_service:/app
     ports:
@@ -103,6 +178,8 @@ services:
       - "3000:80"
     environment:
       VITE_API_URL: http://localhost:8000
+      VITE_MEDIA_MTX_HLS_URL: http://localhost:8888
+      VITE_MEDIA_MTX_WEBRTC_URL: http://localhost:8889
     networks:
       - security_net
 

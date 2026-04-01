@@ -7,9 +7,9 @@ class GlobalConfigUpdate(CameraParams):
 
     Exception: `ai_service_url` applies to **all** workers at once.
     """
-    default_fps: float = Field(2.0, ge=0.1, le=60.0, description="Default FPS for new cameras")
-    default_resize_width: int = Field(1280, ge=0, le=3840, description="Default resize width")
-    default_jpeg_quality: int = Field(90, ge=1, le=100, description="Default JPEG quality")
+    default_fps: float | None = Field(default=None, ge=0.1, le=60.0, description="Default FPS for new cameras")
+    default_resize_width: int | None = Field(default=None, ge=0, le=3840, description="Default resize width")
+    default_jpeg_quality: int | None = Field(default=None, ge=1, le=100, description="Default JPEG quality")
     ai_service_url: str | None = Field(
         default=None,
         examples=["http://192.168.1.200:5000/api/v1/detect"],

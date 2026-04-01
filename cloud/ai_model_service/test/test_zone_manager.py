@@ -3,7 +3,7 @@ import time
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from schemas.events import Zone, ZoneType
+from schemas.events import ZoneType
 from config.settings import settings
 from services.zone_manager import (
     point_in_polygon,
@@ -55,12 +55,16 @@ def test_zone_cache_entry_expiration(monkeypatch):
 @pytest.fixture
 def zone_factory():
     def _create(id="z1", name="Zone 1", enabled=True):
-        return Zone(
-            id=id, camera_id="cam1", name=name,
-            zone_type=ZoneType.RESTRICTED,
-            polygon=[[0,0], [1,0], [1,1], [0,1]],
-            enabled=enabled,
-        )
+        return {
+            "id": id,
+            "camera_id": "cam1",
+            "name": name,
+            "zone_type": "danger",
+            "polygon": [[0, 0], [1, 0], [1, 1], [0, 1]],
+            "is_active": enabled,
+            "risk_weight": 50,
+            "max_people_allowed": 0,
+        }
     return _create
 
 @pytest.fixture
@@ -77,15 +81,16 @@ async def test_get_zones_fetch_from_backend(mock_http_client, zone_factory, monk
     manager._http_client = mock_http_client
     
     mock_response = MagicMock()
-    mock_response.json.return_value = {"zones": [zone_factory().model_dump()]}
+    mock_response.json.return_value = [zone_factory()]
     mock_response.raise_for_status = MagicMock()
     mock_http_client.get.return_value = mock_response
 
     zones = await manager.get_zones("cam1")
     assert len(zones) == 1
     assert zones[0].id == "z1"
+    assert zones[0].zone_type == ZoneType.RESTRICTED
     
-    mock_http_client.get.assert_called_once_with("/api/zones", params={"camera_id": "cam1"})
+    mock_http_client.get.assert_called_once_with("/zones/cam1")
     
     # Second call should use cache
     zones2 = await manager.get_zones("cam1")
@@ -98,7 +103,7 @@ async def test_invalidate_zone_cache(mock_http_client, zone_factory):
     manager._http_client = mock_http_client
     
     mock_response = MagicMock()
-    mock_response.json.return_value = {"zones": [zone_factory().model_dump()]}
+    mock_response.json.return_value = [zone_factory()]
     mock_http_client.get.return_value = mock_response
 
     await manager.get_zones("cam1")
@@ -116,7 +121,7 @@ async def test_invalidate_all_zones(mock_http_client, zone_factory):
     manager = ZoneManager()
     manager._http_client = mock_http_client
     mock_response = MagicMock()
-    mock_response.json.return_value = {"zones": [zone_factory().model_dump()]}
+    mock_response.json.return_value = [zone_factory()]
     mock_http_client.get.return_value = mock_response
 
     await manager.get_zones("cam1")
@@ -125,8 +130,8 @@ async def test_invalidate_all_zones(mock_http_client, zone_factory):
 
 def test_find_zones_for_object(zone_factory):
     manager = ZoneManager()
-    z1 = zone_factory(id="z1", name="Inside")
-    z2 = zone_factory(id="z2", name="Disabled", enabled=False)
+    z1 = manager._parse_backend_zone(zone_factory(id="z1", name="Inside"))
+    z2 = manager._parse_backend_zone(zone_factory(id="z2", name="Disabled", enabled=False))
     
     # Object is inside z1 (0.5, 0.5)
     result = manager.find_zones_for_object([z1, z2], 0.5, 0.5, 0.4, 0.4, 0.6, 0.6, intersection_mode="centroid")

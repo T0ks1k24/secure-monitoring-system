@@ -38,11 +38,29 @@ async def get_status(
         running=True,
         total_cameras=len(cameras),
         active_cameras=active,
+        active_workers=active,
         ai_service_url=settings.AI_SERVICE_URL,
         fps=settings.DEFAULT_FPS,
         resize_width=settings.DEFAULT_RESIZE_WIDTH,
         jpeg_quality=settings.DEFAULT_JPEG_QUALITY,
     )
+
+
+@router.get(
+    "/config",
+    summary="Get current global settings",
+)
+async def get_config(
+    manager: CameraManager = Depends(get_camera_manager),
+) -> dict:
+    current_settings = getattr(manager, "_settings", settings)
+    return {
+        "default_fps": current_settings.DEFAULT_FPS,
+        "default_resize_width": current_settings.DEFAULT_RESIZE_WIDTH,
+        "default_jpeg_quality": current_settings.DEFAULT_JPEG_QUALITY,
+        "ai_service_url": current_settings.AI_SERVICE_URL,
+        "default_reconnect_delay": current_settings.DEFAULT_RECONNECT_DELAY,
+    }
 
 
 @router.patch(
@@ -58,11 +76,17 @@ async def update_config(
     body: GlobalConfigUpdate,
     manager: CameraManager = Depends(get_camera_manager),
 ) -> dict:
-    manager.update_global_config(
-        ai_service_url=body.ai_service_url,
-        default_fps=body.fps,
-        default_resize_width=body.resize_width,
-        default_jpeg_quality=body.jpeg_quality,
-        default_reconnect_delay=body.default_reconnect_delay,
-    )
+    updates = {}
+    if body.ai_service_url is not None:
+        updates["ai_service_url"] = body.ai_service_url
+    if body.default_fps is not None:
+        updates["default_fps"] = body.default_fps
+    if body.default_resize_width is not None:
+        updates["default_resize_width"] = body.default_resize_width
+    if body.default_jpeg_quality is not None:
+        updates["default_jpeg_quality"] = body.default_jpeg_quality
+    if body.default_reconnect_delay is not None:
+        updates["default_reconnect_delay"] = body.default_reconnect_delay
+
+    manager.update_global_config(**updates)
     return {"status": "updated"}

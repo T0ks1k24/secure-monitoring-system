@@ -1,4 +1,3 @@
-import uuid
 from domain.repositories.event_repo import EventRepository
 from domain.entities.event import SecurityEvent
 from domain.enums.risk_enum import RiskLevel
@@ -12,13 +11,24 @@ class EventRepositoryImpl(EventRepository):
 
         db = SessionLocal()
 
+        existing = db.query(EventModel).filter(EventModel.id == event.id).first()
+        if existing:
+            db.close()
+            return event
+
         model = EventModel(
             id=event.id,
             camera_id=event.camera_id,
-            persons=event.persons,
-            zone_id=event.zone_id,
+            event_type=event.event_type,
+            object_class=event.object_class,
+            track_id=event.track_id,
+            confidence=event.confidence,
             timestamp=event.timestamp,
-            risk=event.risk.value
+            zone_id=event.zone_id,
+            zone_name=event.zone_name,
+            risk=event.risk.value,
+            bbox=event.bbox,
+            event_metadata=event.metadata,
         )
 
         db.add(model)
@@ -27,7 +37,7 @@ class EventRepositoryImpl(EventRepository):
 
         return event
 
-    def get_by_id(self, event_id: uuid.UUID) -> SecurityEvent | None:
+    def get_by_id(self, event_id: str) -> SecurityEvent | None:
 
         db = SessionLocal()
         model = db.query(EventModel).filter(EventModel.id == event_id).first()
@@ -39,10 +49,16 @@ class EventRepositoryImpl(EventRepository):
         return SecurityEvent(
             id=model.id,
             camera_id=model.camera_id,
-            persons=model.persons,
-            zone_id=model.zone_id,
+            event_type=model.event_type,
             timestamp=model.timestamp,
-            risk=RiskLevel(model.risk)
+            risk=RiskLevel(model.risk),
+            object_class=model.object_class,
+            track_id=model.track_id,
+            confidence=model.confidence,
+            zone_id=model.zone_id,
+            zone_name=model.zone_name,
+            bbox=model.bbox,
+            metadata=model.event_metadata,
         )
 
     def get_all(self):
@@ -55,10 +71,16 @@ class EventRepositoryImpl(EventRepository):
             SecurityEvent(
                 id=m.id,
                 camera_id=m.camera_id,
-                persons=m.persons,
-                zone_id=m.zone_id,
+                event_type=m.event_type,
                 timestamp=m.timestamp,
-                risk=RiskLevel(m.risk)
+                risk=RiskLevel(m.risk),
+                object_class=m.object_class,
+                track_id=m.track_id,
+                confidence=m.confidence,
+                zone_id=m.zone_id,
+                zone_name=m.zone_name,
+                bbox=m.bbox,
+                metadata=m.event_metadata,
             )
             for m in models
         ]

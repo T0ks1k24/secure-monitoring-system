@@ -1,21 +1,12 @@
 """
-Zone Manager — кеш зон з автоматичним оновленням.
-
-Стратегія оновлення зон (вирішує проблему «як дізнатись про зміну»):
-
-  1. TTL-кеш: кожні ZONE_CACHE_TTL секунд — перезавантажуємо з Backend API
-  2. RabbitMQ push: Backend публікує "zones.updated.{camera_id}" → миттєве оновлення
-  3. Manual invalidate: виклик invalidate(camera_id) з будь-якого місця сервісу
-
-Це дає гарантію що зони завжди свіжі: навіть якщо RabbitMQ не доступний,
-TTL забезпечує максимум ZONE_CACHE_TTL секунд staleness.
+Zone Manager - zone cache with automatic refresh.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -24,47 +15,44 @@ from schemas.events import Zone
 
 logger = logging.getLogger(__name__)
 
+ZONE_TYPE_MAP = {
+    "danger": "restricted",
+    "warning": "perimeter",
+    "safe": "safe_zone",
+}
 
-# ── Polygon geometry (без shapely) ───────────────────────────────────────────
 
 def point_in_polygon(px: float, py: float, polygon: List[List[float]]) -> bool:
-    """
-    Ray casting algorithm — визначає чи точка (px, py) всередині полігону.
-    polygon: [[x1,y1], [x2,y2], ...] у нормалізованих координатах.
-    """
     n = len(polygon)
     inside = False
     j = n - 1
     for i in range(n):
         xi, yi = polygon[i]
         xj, yj = polygon[j]
-        if ((yi > py) != (yj > py)) and (px < (xj - xi) * (py - yi) / (yj - yi) + xi):
+        intersects = ((yi > py) != (yj > py)) and (
+            px < (xj - xi) * (py - yi) / (yj - yi) + xi
+        )
+        if intersects:
             inside = not inside
         j = i
     return inside
 
 
 def bbox_intersects_polygon(
-    bbox_cx: float, bbox_cy: float,
-    bbox_x1: float, bbox_y1: float,
-    bbox_x2: float, bbox_y2: float,
+    bbox_cx: float,
+    bbox_cy: float,
+    bbox_x1: float,
+    bbox_y1: float,
+    bbox_x2: float,
+    bbox_y2: float,
     polygon: List[List[float]],
     mode: str = "centroid",
 ) -> bool:
-    """
-    Перевіряє чи bbox перетинає полігон.
-
-    mode:
-      "centroid"  — тільки центр bbox (швидко, достатньо для більшості випадків)
-      "corners"   — будь-який кут bbox (менше false-negatives)
-      "feet"      — нижній центр bbox (зручно для людей — де стоять)
-    """
     if mode == "centroid":
         return point_in_polygon(bbox_cx, bbox_cy, polygon)
-    elif mode == "feet":
-        # Нижня центральна точка — де стоять ноги
+    if mode == "feet":
         return point_in_polygon(bbox_cx, bbox_y2, polygon)
-    elif mode == "corners":
+    if mode == "corners":
         points = [
             (bbox_cx, bbox_cy),
             (bbox_x1, bbox_y1),
@@ -76,8 +64,6 @@ def bbox_intersects_polygon(
     return False
 
 
-# ── Zone cache entry ──────────────────────────────────────────────────────────
-
 class ZoneCacheEntry:
     def __init__(self, zones: List[Zone]) -> None:
         self.zones = zones
@@ -87,15 +73,7 @@ class ZoneCacheEntry:
         return (time.monotonic() - self.loaded_at) > settings.ZONE_CACHE_TTL
 
 
-# ── Zone Manager ──────────────────────────────────────────────────────────────
-
 class ZoneManager:
-    """
-    Thread-safe кеш зон.
-    Завантажує зони з Backend API, кешує по camera_id.
-    Слухає RabbitMQ для миттєвого інвалідування.
-    """
-
     def __init__(self) -> None:
         self._cache: Dict[str, ZoneCacheEntry] = {}
         self._loading: Dict[str, asyncio.Lock] = {}
@@ -112,38 +90,24 @@ class ZoneManager:
         if self._http_client:
             await self._http_client.aclose()
 
-    # ── Public API ────────────────────────────────────────────────
-
     async def get_zones(self, camera_id: str) -> List[Zone]:
-        """
-        Повертає актуальні зони для камери.
-        Автоматично завантажує/перезавантажує якщо кеш прострочений.
-        """
         entry = self._cache.get(camera_id)
         if entry is None or entry.is_expired():
             await self._reload(camera_id)
         return self._cache.get(camera_id, ZoneCacheEntry([])).zones
 
     def invalidate(self, camera_id: str) -> None:
-        """
-        Миттєво інвалідує кеш для камери.
-        Викликається з RabbitMQ consumer при отриманні zones.updated.{camera_id}.
-        Наступний запит get_zones() завантажить свіжі дані.
-        """
         if camera_id in self._cache:
             del self._cache[camera_id]
-            logger.info(f"Zone cache invalidated for camera: {camera_id}")
+            logger.info("Zone cache invalidated for camera: %s", camera_id)
 
     def invalidate_all(self) -> None:
-        """Очищає весь кеш — для debug або при реконнекті."""
         self._cache.clear()
         logger.info("All zone caches cleared")
 
     @property
     def total_cached_zones(self) -> int:
-        return sum(len(e.zones) for e in self._cache.values())
-
-    # ── Geometry ──────────────────────────────────────────────────
+        return sum(len(entry.zones) for entry in self._cache.values())
 
     def find_zones_for_object(
         self,
@@ -156,75 +120,95 @@ class ZoneManager:
         bbox_y2: float,
         intersection_mode: str = "feet",
     ) -> List[Zone]:
-        """
-        Знаходить всі зони в яких перебуває об'єкт.
-        Використовує 'feet' mode за замовчуванням —
-        нижній центр bbox, де стоять ноги людини/колеса авто.
-        """
         result = []
         for zone in zones:
             if not zone.enabled:
                 continue
             if bbox_intersects_polygon(
-                bbox_cx, bbox_cy,
-                bbox_x1, bbox_y1, bbox_x2, bbox_y2,
+                bbox_cx,
+                bbox_cy,
+                bbox_x1,
+                bbox_y1,
+                bbox_x2,
+                bbox_y2,
                 zone.polygon,
                 mode=intersection_mode,
             ):
                 result.append(zone)
         return result
 
-    # ── Internal ──────────────────────────────────────────────────
-
     async def _reload(self, camera_id: str) -> None:
-        """Завантажує зони з Backend API. Lock на camera_id — щоб не слати дублікати."""
         if camera_id not in self._loading:
             self._loading[camera_id] = asyncio.Lock()
 
         async with self._loading[camera_id]:
-            # Перевіряємо ще раз після lock (інший coroutine міг вже завантажити)
             entry = self._cache.get(camera_id)
             if entry and not entry.is_expired():
                 return
 
             zones = await self._fetch_from_backend(camera_id)
             self._cache[camera_id] = ZoneCacheEntry(zones)
-            logger.info(f"Loaded {len(zones)} zones for camera: {camera_id}")
+            logger.info("Loaded %d zones for camera: %s", len(zones), camera_id)
 
     async def _fetch_from_backend(self, camera_id: str) -> List[Zone]:
-        """HTTP GET /api/zones?camera_id={camera_id}"""
         if self._http_client is None:
             return []
+
+        endpoints = (
+            f"/zones/{camera_id}",
+            f"/api/zones/{camera_id}",
+        )
+        last_error: Exception | None = None
+
         try:
-            # Backend API matches GET /zones/{camera_id} or /api/zones/{camera_id} based on mapping
-            # Based on backend's presentation/api/zone_controller.py: router.get("/{camera_id}")
-            # which might be mounted under /api/zones or /zones.
-            # Usually BACKEND_API_URL includes the base path.
-            resp = await self._http_client.get(f"/api/zones/{camera_id}")
-            resp.raise_for_status()
-            
-            # The backend zone_controller returns a list directly: `List[ZoneResponse]`
-            # but we also handle {"zones": [...]} just in case.
-            raw_data = resp.json()
-            zone_data_list = raw_data if isinstance(raw_data, list) else raw_data.get("zones", [])
-            
-            zones = [Zone(**z) for z in zone_data_list]
-            
-            # Filter out disabled zones
-            enabled_zones = [z for z in zones if z.enabled]
-            
-            logger.info(f"Fetched {len(enabled_zones)} zones for camera {camera_id} from backend.")
+            zone_payloads: list[dict[str, Any]] = []
+            for endpoint in endpoints:
+                try:
+                    response = await self._http_client.get(endpoint)
+                    response.raise_for_status()
+                    raw = response.json()
+                    zone_payloads = raw if isinstance(raw, list) else raw.get("zones", [])
+                    break
+                except httpx.HTTPError as exc:
+                    last_error = exc
+
+            zones = [self._parse_backend_zone(item) for item in zone_payloads]
+            enabled_zones = [zone for zone in zones if zone.enabled]
+            logger.info(
+                "Fetched %d zones for camera %s from backend.",
+                len(enabled_zones),
+                camera_id,
+            )
             return enabled_zones
-        except httpx.HTTPError as e:
-            logger.error(f"Failed to fetch zones for camera {camera_id}: {e}")
         except Exception:
-            logger.exception(f"Failed to fetch zones for {camera_id}")
-        # Повертаємо старий кеш якщо є
+            logger.exception("Failed to fetch zones for %s", camera_id)
+
+        if last_error:
+            logger.error("Last backend zone fetch error for %s: %s", camera_id, last_error)
+
         old = self._cache.get(camera_id)
         if old:
-            logger.warning(f"Using stale zone cache for {camera_id}")
+            logger.warning("Using stale zone cache for %s", camera_id)
             return old.zones
         return []
+
+    def _parse_backend_zone(self, payload: dict[str, Any]) -> Zone:
+        zone_type = payload.get("zone_type", "restricted")
+        normalized_zone_type = ZONE_TYPE_MAP.get(zone_type, zone_type)
+        enabled = payload.get("enabled", payload.get("is_active", True))
+
+        return Zone(
+            id=str(payload["id"]),
+            camera_id=str(payload["camera_id"]),
+            name=payload["name"],
+            zone_type=normalized_zone_type,
+            polygon=payload.get("polygon") or [],
+            enabled=bool(enabled),
+            metadata={
+                "risk_weight": payload.get("risk_weight"),
+                "max_people_allowed": payload.get("max_people_allowed"),
+            },
+        )
 
 
 zone_manager = ZoneManager()

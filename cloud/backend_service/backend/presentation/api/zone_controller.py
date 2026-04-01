@@ -1,23 +1,23 @@
 from fastapi import APIRouter, HTTPException
 from application.services.zone_service import ZoneService
-from application.dto.zone_dto import ZoneCreateDTO, ZoneUpdateDTO
+from application.dto.zone_dto import ZoneCreateDTO, ZoneUpdateDTO, ZoneResponseDTO
 
 router = APIRouter(prefix="/zones", tags=["Zones"])
 
 service = ZoneService()
 
 
-@router.post("/")
+@router.post("/", response_model=ZoneResponseDTO)
 async def create_zone(dto: ZoneCreateDTO):
     return await service.create(dto)
 
 
-@router.get("/{camera_id}")
+@router.get("/{camera_id}", response_model=list[ZoneResponseDTO])
 async def get_zones(camera_id: str):
     return await service.list(camera_id)
 
 
-@router.put("/{zone_id}")
+@router.put("/{zone_id}", response_model=ZoneResponseDTO)
 async def update_zone(zone_id: int, dto: ZoneUpdateDTO):
     result = await service.update(zone_id, dto)
     if not result:
