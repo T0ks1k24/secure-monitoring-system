@@ -278,6 +278,8 @@ class RiskEngine:
         # 2. Зональний аналіз
         for track in tracks:
             track_zones = zone_memberships.get(track.id, [])
+            if settings.RISK_EVENTS_ONLY_IN_ZONES and not track_zones:
+                continue
             zone_events = self._zone_analysis(
                 camera_id, track, track_zones, frame_timestamp, fps, now
             )
@@ -286,6 +288,8 @@ class RiskEngine:
         # 3. Поведінковий аналіз
         for track in tracks:
             track_zones = zone_memberships.get(track.id, [])
+            if settings.RISK_EVENTS_ONLY_IN_ZONES and not track_zones:
+                continue
             behavioral = self._behavioral_analysis(
                 camera_id, track, track_zones, frame_timestamp, fps, now
             )
@@ -484,16 +488,19 @@ class RiskEngine:
         now: datetime,
     ) -> List[SecurityEvent]:
         events = []
+        if settings.RISK_EVENTS_ONLY_IN_ZONES and not zones:
+            return events
 
         # === Running ===
         RUNNING_THRESHOLD = 0.018
+        primary_zone = zones[0] if zones else None
         if (
             track.obj_class == "person"
             and track.speed > RUNNING_THRESHOLD
             and track.age_frames > 5
         ):
             if deduplicator.should_fire(
-                camera_id, EventType.RUNNING_DETECTED, track.id, None
+                camera_id, EventType.RUNNING_DETECTED, track.id, primary_zone.id if primary_zone else None
             ):
                 base_risk = RiskLevel.MEDIUM
                 # Для behavioral подій без зони — беремо найагресивніший розклад
@@ -511,6 +518,8 @@ class RiskEngine:
                     object_class=track.obj_class,
                     confidence=track.confidence,
                     bbox=track.bbox,
+                    zone_id=primary_zone.id if primary_zone else None,
+                    zone_name=primary_zone.name if primary_zone else None,
                     metadata={
                         "speed_norm": track.speed,
                         "direction": track.direction_degrees,
@@ -569,7 +578,7 @@ class RiskEngine:
             and track.speed < ABANDONED_MAX_SPEED
         ):
             if deduplicator.should_fire(
-                camera_id, EventType.ABANDONED_OBJECT, track.id, None
+                camera_id, EventType.ABANDONED_OBJECT, track.id, primary_zone.id if primary_zone else None
             ):
                 base_risk = RiskLevel.HIGH
                 effective_risk = self._reduce_for_zones(
@@ -585,6 +594,8 @@ class RiskEngine:
                     object_class=track.obj_class,
                     confidence=track.confidence,
                     bbox=track.bbox,
+                    zone_id=primary_zone.id if primary_zone else None,
+                    zone_name=primary_zone.name if primary_zone else None,
                     metadata={
                         "stationary_frames": track.age_frames,
                         "stationary_seconds": track.age_frames / fps,

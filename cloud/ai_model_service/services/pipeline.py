@@ -81,6 +81,24 @@ class AnalyzePipeline:
 
         # ── Step 5: Publish to RabbitMQ ───────────────────────────
         published = 0
+        zone_events = [
+            evt
+            for evt in security_events
+            if isinstance(evt, SecurityEvent) and evt.zone_id
+        ]
+
+        # Save one evidence frame for zone-triggered events and attach URL.
+        if zone_events:
+            rendered_for_evidence = visual_renderer.draw_overlays(
+                frame, camera_id, zones, confirmed_tracks, security_events
+            )
+            saved_path = frame_storage.save_frame(rendered_for_evidence, camera_id, frame_ts)
+            evidence_url = frame_storage.build_public_url(saved_path) if saved_path else None
+            if evidence_url:
+                for evt in zone_events:
+                    evt.metadata["evidence_url"] = evidence_url
+                    evt.metadata["evidence_saved"] = True
+
         # 5. Публікуємо івенти
         if security_events:
             published = await rabbitmq_service.publish_events(security_events)

@@ -46,5 +46,19 @@ class FrameStorageService:
             logger.exception(f"Error saving frame for camera {camera_id}: {e}")
             return None
 
+    def build_public_url(self, saved_path: str) -> Optional[str]:
+        """
+        Converts a saved file path into a browser-accessible URL.
+        """
+        try:
+            base_path = Path(settings.FRAME_STORAGE_PATH).resolve()
+            file_path = Path(saved_path).resolve()
+            rel = file_path.relative_to(base_path).as_posix()
+            base_url = settings.EVIDENCE_PUBLIC_BASE_URL.rstrip("/")
+            return f"{base_url}/evidence/{rel}"
+        except Exception as e:
+            logger.exception(f"Error building evidence URL for {saved_path}: {e}")
+            return None
+
 # Singleton instance
 frame_storage = FrameStorageService()

@@ -84,6 +84,13 @@ class MotionConfig(BaseModel):
         ),
     )
 
+    @field_validator("blur_size")
+    @classmethod
+    def blur_size_must_be_odd(cls, v: int) -> int:
+        if v % 2 == 0:
+            raise ValueError("blur_size must be an odd integer")
+        return v
+
 
 
 

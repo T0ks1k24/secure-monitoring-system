@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     ZONES_EXCHANGE: str = "security.zones"
 
     # ── Risk / Trajectory ─────────────────────────────────────────
+    # Якщо True — події ризику генеруються тільки коли трек в активній зоні.
+    # Виняток: WEAPON_DETECTED (завжди CRITICAL).
+    RISK_EVENTS_ONLY_IN_ZONES: bool = True
     # Скільки кадрів зберігати для аналізу траєкторії
     TRAJECTORY_HISTORY_FRAMES: int = 30
     # Мінімальна швидкість (px/frame) що вважається «рухом»
@@ -51,6 +54,8 @@ class Settings(BaseSettings):
     SAVE_PROCESSED_FRAMES: bool = False
     # Шлях до папки зі збереженими кадрами
     FRAME_STORAGE_PATH: str = "storage/frames"
+    # Публічний base URL AI сервісу для формування посилань на evidence-файли
+    EVIDENCE_PUBLIC_BASE_URL: str = "http://localhost:5000"
 
     # ── Debug ─────────────────────────────────────────────────────
     # Включає/виключає відображення кадрів з результатами (cv2.imshow)

@@ -1,8 +1,12 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
+const FRAME_API_BASE = (
+  import.meta.env.VITE_FRAME_API_URL || "http://localhost:8100"
+).replace(/\/+$/, "");
+
 export const camerasApi = createApi({
   reducerPath: "camerasApi",
-  baseQuery: fetchBaseQuery({ baseUrl: "http://localhost:8100/api/v1" }),
+  baseQuery: fetchBaseQuery({ baseUrl: `${FRAME_API_BASE}/api/v1` }),
   tagTypes: ["Camera"],
   endpoints: (builder) => ({
     getCameras: builder.query({

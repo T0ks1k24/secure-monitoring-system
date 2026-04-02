@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     DEFAULT_JPEG_QUALITY: int = 95
     DEFAULT_RECONNECT_DELAY: int = 3
 
+    # In Docker, cameras are often mistakenly saved as localhost.
+    # Rewrite localhost/127.0.0.1 RTSP host to this service name.
+    RTSP_LOCALHOST_REWRITE_HOST: str = "mediamtx"
+
     DATABASE_URL: str = "sqlite:///./cameras.db"
 
     model_config = {"env_file": ".env", "extra": "ignore"}

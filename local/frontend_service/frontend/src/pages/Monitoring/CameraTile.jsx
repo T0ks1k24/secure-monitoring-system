@@ -13,25 +13,25 @@ export default function CameraTile({
     isZoneMenuOpen, currentDrawingPoints, onPointAdd,
     mode, editingZoneId, isPanelOpen 
 }) {
-    const videoRef = useRef(null);
+    const mediaRef = useRef(null);
     const canvasRef = useRef(null);
     const clickTimer = useRef(null);
     const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
-    const { data: zones = [] } = useGetZonesQuery(camera.id);
+    const { data: zones = [] } = useGetZonesQuery(camera.zoneCameraId || camera.id);
 
     useLayoutEffect(() => {
-        const video = videoRef.current;
+        const media = mediaRef.current;
         const canvas = canvasRef.current;
-        if (!video || !canvas) return;
+        if (!media || !canvas) return;
 
         const updateSize = () => {
-            const { width, height } = video.getBoundingClientRect();
+            const { width, height } = media.getBoundingClientRect();
             canvas.width = width;
             canvas.height = height;
             setCanvasSize({ width, height });
         };
         const resizeObserver = new ResizeObserver(() => updateSize());
-        resizeObserver.observe(video);
+        resizeObserver.observe(media);
 
         updateSize();
 
@@ -154,7 +154,27 @@ export default function CameraTile({
             onDoubleClick={(e) => handleClicks(e, 'double')}
         >
             <div className="video-inner">
-                <video ref={videoRef} src={camera.src} autoPlay loop muted playsInline />
+                {camera.webrtcUrl ? (
+                    <iframe
+                        ref={mediaRef}
+                        src={camera.webrtcUrl}
+                        allow="autoplay; fullscreen"
+                        title={`camera-stream-${camera.id}`}
+                        style={{ pointerEvents: "none" }}
+                    />
+                ) : (
+                    <video
+                        ref={mediaRef}
+                        src={camera.src}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        controls={false}
+                        disablePictureInPicture
+                        controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
+                    />
+                )}
                 <canvas ref={canvasRef} />
             </div>
             <div className="camera-label">{camera.name || `Камера ${camera.id}`}</div>

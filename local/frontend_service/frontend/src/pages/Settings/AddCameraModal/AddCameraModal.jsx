@@ -93,10 +93,13 @@ export default function AddCameraModal({ isOpen, onClose, onSave, initialValues 
                             </label>
                             <input
                                 required
-                                placeholder="rtsp://127.0.0.1:8554/camera1"
+                                placeholder="rtsp://mediamtx:8554/camera1"
                                 value={formData.rtsp}
                                 onChange={e => setFormData({ ...formData, rtsp: e.target.value })}
                             />
+                            <small style={{ color: "#94a3b8", marginTop: "6px", display: "block" }}>
+                                Для Docker Compose використовуй: <code>rtsp://mediamtx:8554/camera1</code> або <code>rtsp://mediamtx:8554/camera2</code>
+                            </small>
                         </div>
 
                         <div className="input-group">

@@ -68,6 +68,18 @@ class TestCameraManagerStartup(unittest.IsolatedAsyncioTestCase):
         await self.manager.startup()
         self.assertEqual(len(self.manager._workers), 0)  # pylint: disable=protected-access
 
+    async def test_startup_rewrites_existing_localhost_rtsp(self):
+        bad = CameraConfig(id=1, rtsp="rtsp://localhost:8554/camera1", enabled=False)
+        self.repo.load_all.return_value = [bad]
+        worker = _make_mock_worker(1, enabled=False)
+        self.factory.create_worker.return_value = worker
+
+        await self.manager.startup()
+
+        self.repo.update.assert_called_once()
+        updated_cfg = self.repo.update.call_args.args[0]
+        self.assertEqual(updated_cfg.rtsp, "rtsp://mediamtx:8554/camera1")
+
 
 class TestCameraManagerShutdown(unittest.IsolatedAsyncioTestCase):
     """Test suite for CameraManager shutdown logic."""
@@ -124,6 +136,17 @@ class TestCameraManagerAdd(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.id, 20)
         w.start.assert_not_called()
         self.repo.add.assert_called_once()
+
+    def test_add_camera_rewrites_localhost_rtsp(self):
+        req = CameraAddRequest(rtsp="rtsp://127.0.0.1:8554/camera1")
+        self.repo.add.return_value = 30
+        w = _make_mock_worker(30)
+        self.factory.create_worker.return_value = w
+
+        self.manager.add_camera(req)
+
+        saved_cfg = self.repo.add.call_args.args[0]
+        self.assertEqual(saved_cfg.rtsp, "rtsp://mediamtx:8554/camera1")
 
 
 class TestCameraManagerUpdate(unittest.IsolatedAsyncioTestCase):

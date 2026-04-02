@@ -154,10 +154,18 @@ class ZoneManager:
         if self._http_client is None:
             return []
 
-        endpoints = (
-            f"/zones/{camera_id}",
-            f"/api/zones/{camera_id}",
-        )
+        candidate_ids = [camera_id]
+        if camera_id.isdigit():
+            candidate_ids.append(f"camera{camera_id}")
+        elif camera_id.startswith("camera") and camera_id[6:].isdigit():
+            candidate_ids.append(camera_id[6:])
+
+        endpoints = []
+        for cid in candidate_ids:
+            endpoints.extend((
+                f"/zones/{cid}",
+                f"/api/zones/{cid}",
+            ))
         last_error: Exception | None = None
 
         try:
@@ -167,8 +175,11 @@ class ZoneManager:
                     response = await self._http_client.get(endpoint)
                     response.raise_for_status()
                     raw = response.json()
-                    zone_payloads = raw if isinstance(raw, list) else raw.get("zones", [])
-                    break
+                    candidate_payloads = raw if isinstance(raw, list) else raw.get("zones", [])
+                    # Important: don't stop on empty 200 response, try the alias camera_id too.
+                    if candidate_payloads:
+                        zone_payloads = candidate_payloads
+                        break
                 except httpx.HTTPError as exc:
                     last_error = exc
 

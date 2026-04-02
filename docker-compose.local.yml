@@ -16,12 +16,22 @@ services:
   frontend:
     build:
       context: ./local/frontend_service/frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_FRAME_API_URL: ${VITE_FRAME_API_URL:-http://localhost:8100}
+        VITE_MEDIA_MTX_HLS_URL: ${VITE_MEDIA_MTX_HLS_URL:-http://localhost:8888}
+        VITE_MEDIA_MTX_WEBRTC_URL: ${VITE_MEDIA_MTX_WEBRTC_URL:-http://localhost:8889}
+        VITE_WS_EVENTS_URL: ${VITE_WS_EVENTS_URL:-}
     container_name: frontend_service
     restart: unless-stopped
     ports:
       - "80:80"
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      VITE_FRAME_API_URL: ${VITE_FRAME_API_URL:-http://localhost:8100}
+      VITE_MEDIA_MTX_HLS_URL: ${VITE_MEDIA_MTX_HLS_URL:-http://localhost:8888}
+      VITE_MEDIA_MTX_WEBRTC_URL: ${VITE_MEDIA_MTX_WEBRTC_URL:-http://localhost:8889}
+      VITE_WS_EVENTS_URL: ${VITE_WS_EVENTS_URL:-ws://localhost:8000/ws/events}
     networks:
       - security_local_net
 

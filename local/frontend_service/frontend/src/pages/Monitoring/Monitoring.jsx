@@ -1,32 +1,58 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useParams } from "react-router-dom";
 import CameraTile from "./CameraTile";
 import CameraSelectionModal from "./CameraSelectionModal";
 import "./Monitoring.scss";
-import { 
-    useGetZonesQuery, 
+import {
+    useGetZonesQuery,
     useAddZoneMutation,
-    useUpdateZoneMutation, 
-    useDeleteZoneMutation 
-} from "../../services/zonesApi"; 
+    useUpdateZoneMutation,
+    useDeleteZoneMutation
+} from "../../services/zonesApi";
+import { useGetCamerasQuery } from "../../services/camerasApi";
 
-import cam1Video from "../../../cameras/cam1.mp4";
-import cam2Video from "../../../cameras/cam2.mp4";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/+$/, "");
+const MEDIA_MTX_WEBRTC_URL = (import.meta.env.VITE_MEDIA_MTX_WEBRTC_URL || "http://localhost:8889").replace(/\/+$/, "");
+const WS_EVENTS_URL =
+    import.meta.env.VITE_WS_EVENTS_URL ||
+    `${API_BASE_URL.startsWith("https://")
+        ? API_BASE_URL.replace("https://", "wss://")
+        : API_BASE_URL.replace("http://", "ws://")}/ws/events`;
+const MAX_EVENTS = 50;
 
-const ALL_CAMERAS = [
-    { id: "1", name: "Камера 1", src: cam1Video },
-    { id: "2", name: "Камера 2", src: cam2Video },
-    { id: "3", name: "Камера 3", src: cam1Video },
-    { id: "4", name: "Камера 4", src: cam2Video },
-    { id: "5", name: "Камера 5", src: cam1Video },
-    { id: "6", name: "Камера 6", src: cam2Video },
-    { id: "7", name: "Камера 7", src: cam1Video },
-    { id: "8", name: "Камера 8", src: cam2Video },
-    { id: "9", name: "Камера 9", src: cam1Video },
-    { id: "10", name: "Камера 10", src: cam2Video },
-];
+function normalizeEvent(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    return {
+        id: String(raw.id || `${raw.camera_id || "unknown"}-${raw.timestamp || Date.now()}`),
+        camera_id: String(raw.camera_id || ""),
+        event_type: raw.event_type || "unknown",
+        risk: raw.risk || "unknown",
+        zone_name: raw.zone_name || "",
+        timestamp: raw.timestamp || new Date().toISOString(),
+        metadata: raw.metadata || {},
+    };
+}
+
+function getStreamPath(rtsp) {
+    if (!rtsp || typeof rtsp !== "string") return "";
+    const parts = rtsp.split("/").filter(Boolean);
+    return parts.at(-1) || "";
+}
+
+function eventMatchesCamera(eventCameraId, camera) {
+    const candidates = [
+        String(camera.id),
+        camera.streamPath,
+        `camera${camera.id}`,
+    ].filter(Boolean);
+    return candidates.includes(String(eventCameraId));
+}
 
 export default function Monitoring() {
-    const [selectedCameras, setSelectedCameras] = useState(ALL_CAMERAS.slice(0, 2));
+    const { cameraId } = useParams();
+    const { data: cameras = [] } = useGetCamerasQuery();
+
+    const [selectedCameras, setSelectedCameras] = useState([]);
     const [activeId, setActiveId] = useState(null);
     const [focusedId, setFocusedId] = useState(null);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -40,6 +66,8 @@ export default function Monitoring() {
 
     const [isKiosk, setIsKiosk] = useState(false);
     const [showExitBtn, setShowExitBtn] = useState(false);
+    const [events, setEvents] = useState([]);
+    const [eventsStatus, setEventsStatus] = useState("connecting");
 
     const [zoneForm, setZoneForm] = useState({
         name: "",
@@ -48,24 +76,78 @@ export default function Monitoring() {
         max_people_allowed: ""
     });
 
-    const { data: activeZones = [] } = useGetZonesQuery(activeId, { skip: !activeId });
+    const allCameras = useMemo(() => {
+        return cameras.map((cam) => {
+            const streamPath = getStreamPath(cam.rtsp);
+            return {
+                id: String(cam.id),
+                name: cam.name || `Камера ${cam.id}`,
+                streamPath,
+                zoneCameraId: streamPath || String(cam.id),
+                webrtcUrl: streamPath ? `${MEDIA_MTX_WEBRTC_URL}/${streamPath}` : "",
+                status: cam.status,
+            };
+        });
+    }, [cameras]);
+
+    useEffect(() => {
+        if (!allCameras.length) {
+            setSelectedCameras([]);
+            return;
+        }
+
+        setSelectedCameras((previous) => {
+            const previousIds = new Set(previous.map((cam) => cam.id));
+            const preserved = allCameras.filter((cam) => previousIds.has(cam.id));
+            if (preserved.length > 0) return preserved;
+
+            const preferred = cameraId
+                ? allCameras.find((cam) => cam.id === String(cameraId))
+                : null;
+
+            if (preferred) {
+                const rest = allCameras.filter((cam) => cam.id !== preferred.id);
+                return [preferred, ...rest].slice(0, 2);
+            }
+
+            return allCameras.slice(0, 2);
+        });
+    }, [allCameras, cameraId]);
+
+    useEffect(() => {
+        if (activeId && !selectedCameras.some((cam) => cam.id === activeId)) {
+            setActiveId(null);
+        }
+    }, [selectedCameras, activeId]);
+
+    const activeCamera = selectedCameras.find((cam) => cam.id === activeId);
+    const { data: activeZones = [] } = useGetZonesQuery(
+        activeCamera?.zoneCameraId,
+        { skip: !activeCamera?.zoneCameraId }
+    );
     const [addZone] = useAddZoneMutation();
     const [deleteZone] = useDeleteZoneMutation();
     const [updateZone] = useUpdateZoneMutation();
 
+    const hasWindowApi = typeof window !== "undefined" && !!window.windowAPI;
+
     const exitKiosk = useCallback(() => {
-        window.windowAPI.toggleKiosk();
+        if (window.windowAPI?.toggleKiosk) {
+            window.windowAPI.toggleKiosk();
+        }
         setIsKiosk(false);
         setShowExitBtn(false);
         document.body.classList.remove("kiosk-mode");
     }, []);
 
     useEffect(() => {
+        if (!hasWindowApi || !window.windowAPI?.onKioskChange) return;
+
         window.windowAPI.onKioskChange((val) => {
             setIsKiosk(val);
             document.body.classList.toggle("kiosk-mode", val);
         });
-    }, []);
+    }, [hasWindowApi]);
 
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -74,6 +156,83 @@ export default function Monitoring() {
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [exitKiosk]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadInitialEvents = async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/events/`);
+                if (!response.ok) return;
+                const data = await response.json();
+                if (cancelled || !Array.isArray(data)) return;
+
+                const prepared = data
+                    .map(normalizeEvent)
+                    .filter(Boolean)
+                    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                    .slice(0, MAX_EVENTS);
+                setEvents(prepared);
+            } catch (error) {
+                console.error("Failed to load initial events", error);
+            }
+        };
+
+        loadInitialEvents();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        let socket = null;
+        let reconnectTimer = null;
+        let manuallyClosed = false;
+
+        const connect = () => {
+            setEventsStatus("connecting");
+            socket = new WebSocket(WS_EVENTS_URL);
+
+            socket.onopen = () => {
+                setEventsStatus("connected");
+            };
+
+            socket.onmessage = (message) => {
+                try {
+                    const parsed = JSON.parse(message.data);
+                    const incomingEvent = normalizeEvent(parsed);
+                    if (!incomingEvent) return;
+
+                    setEvents((previous) => {
+                        const withoutDuplicate = previous.filter((item) => item.id !== incomingEvent.id);
+                        return [incomingEvent, ...withoutDuplicate].slice(0, MAX_EVENTS);
+                    });
+                } catch (error) {
+                    console.error("Failed to parse websocket event", error);
+                }
+            };
+
+            socket.onerror = () => {
+                setEventsStatus("disconnected");
+                socket?.close();
+            };
+
+            socket.onclose = () => {
+                if (manuallyClosed) return;
+                setEventsStatus("disconnected");
+                reconnectTimer = window.setTimeout(connect, 3000);
+            };
+        };
+
+        connect();
+
+        return () => {
+            manuallyClosed = true;
+            if (reconnectTimer) window.clearTimeout(reconnectTimer);
+            if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+                socket.close();
+            }
+        };
+    }, []);
 
     const resetDrawState = () => {
         setMode("view");
@@ -86,7 +245,7 @@ export default function Monitoring() {
         const isEdit = mode === "edit";
         if (!isEdit && currentZone.length < 3) return;
 
-        const canvas = document.querySelector('.camera-tile.active canvas');
+        const canvas = document.querySelector(".camera-tile.active canvas");
         if (!canvas) return;
 
         const { width, height } = canvas;
@@ -97,7 +256,7 @@ export default function Monitoring() {
 
         const payload = {
             name: zoneForm.name || `Зона ${activeZones.length + 1}`,
-            camera_id: activeId,
+            camera_id: activeCamera?.zoneCameraId || activeId,
             polygon: pointsToSave,
             zone_type: zoneForm.zone_type,
             risk_weight: Number(zoneForm.risk_weight || 40),
@@ -144,6 +303,14 @@ export default function Monitoring() {
         onPointAdd: (p) => mode === "draw" && setCurrentZone(prev => [...prev, p]),
     });
 
+    const visibleEvents = events.filter((evt) => {
+        if (!activeCamera) return true;
+        return eventMatchesCamera(evt.camera_id, activeCamera);
+    });
+
+    const runningCameras = cameras.filter((cam) => cam.status === "running").length;
+    const connectingCameras = cameras.filter((cam) => cam.status === "connecting").length;
+
     return (
         <div className={`monitoring-container ${isPanelOpen ? "panel-open" : "panel-closed"}`}>
             <div className="main-content">
@@ -179,6 +346,13 @@ export default function Monitoring() {
                 <h2>Керування</h2>
                 <button className="start-btn" onClick={() => setIsModalOpen(true)}>+ Налаштувати камери</button>
                 <button className="start-btn">Почати моніторинг</button>
+
+                <div className="system-health">
+                    <div>Камер в системі: <strong>{cameras.length}</strong></div>
+                    <div>Running: <strong>{runningCameras}</strong></div>
+                    <div>Connecting: <strong>{connectingCameras}</strong></div>
+                    <div>WS подій: <strong>{eventsStatus}</strong></div>
+                </div>
 
                 {activeId ? (
                     <div className="panel-content">
@@ -245,7 +419,34 @@ export default function Monitoring() {
                 {!isZoneMenuOpen && (
                     <div className="events-block" style={{marginTop: "20px"}}>
                         <h3 style={{color: "white", fontSize: "16px", marginBottom: "10px"}}>Події</h3>
-                        <ul id="events"></ul>
+                        <div className="events-status">Стан каналу: {eventsStatus}</div>
+                        <ul className="events-list">
+                            {visibleEvents.length === 0 ? (
+                                <li className="empty">Подій поки немає</li>
+                            ) : (
+                                visibleEvents.map((event) => (
+                                    <li key={`${event.id}-${event.timestamp}`}>
+                                        [{new Date(event.timestamp).toLocaleTimeString()}]{" "}
+                                        {event.event_type} | Камера: {event.camera_id} | Ризик: {event.risk}
+                                        {event.zone_name ? ` | Зона: ${event.zone_name}` : ""}
+                                        {event.metadata?.evidence_url ? (
+                                            <a
+                                                href={event.metadata.evidence_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="event-evidence-link"
+                                            >
+                                                <img
+                                                    src={event.metadata.evidence_url}
+                                                    alt="evidence"
+                                                    className="event-evidence-thumb"
+                                                />
+                                            </a>
+                                        ) : null}
+                                    </li>
+                                ))
+                            )}
+                        </ul>
                     </div>
                 )}
             </aside>
@@ -261,10 +462,10 @@ export default function Monitoring() {
                     </div>
                 </div>
             )}
-            
+
             {isModalOpen && (
                 <CameraSelectionModal
-                    allCameras={ALL_CAMERAS}
+                    allCameras={allCameras}
                     selectedCameras={selectedCameras}
                     onClose={() => setIsModalOpen(false)}
                     onSave={handleSaveCameras}

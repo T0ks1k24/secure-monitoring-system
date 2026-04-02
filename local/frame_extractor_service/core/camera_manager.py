@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import Dict, List, Optional
+from urllib.parse import urlparse, urlunparse
 
 from config import Settings
 from schemas import (
@@ -40,6 +41,11 @@ class CameraManager:
         """Load config and start enabled cameras."""
         cameras = self._repo.load_all()
         for cfg in cameras:
+            normalized_rtsp = self._normalize_rtsp_url(cfg.rtsp)
+            if normalized_rtsp != cfg.rtsp:
+                cfg.rtsp = normalized_rtsp
+                self._repo.update(cfg)
+
             worker = self._factory.create_worker(cfg)
             self._workers[cfg.id] = worker
             if cfg.enabled:
@@ -57,7 +63,9 @@ class CameraManager:
 
     def add_camera(self, req: CameraAddRequest) -> CameraStatusResponse:
         # Create config without ID first
-        cfg = CameraConfig(**req.model_dump())
+        data = req.model_dump()
+        data["rtsp"] = self._normalize_rtsp_url(data["rtsp"])
+        cfg = CameraConfig(**data)
 
         # Save to repo to get the generated ID
         new_id = self._repo.add(cfg)
@@ -78,6 +86,8 @@ class CameraManager:
     ) -> CameraStatusResponse:
         worker = self._get_or_raise(camera_id)
         updates = req.model_dump(exclude_none=True)
+        if "rtsp" in updates:
+            updates["rtsp"] = self._normalize_rtsp_url(updates["rtsp"])
 
         # Update top-level camera params
         for key, val in updates.items():
@@ -111,6 +121,10 @@ class CameraManager:
 
     def start_camera(self, camera_id: int) -> CameraStatusResponse:
         worker = self._get_or_raise(camera_id)
+        normalized_rtsp = self._normalize_rtsp_url(worker.config.rtsp)
+        if normalized_rtsp != worker.config.rtsp:
+            worker.config.rtsp = normalized_rtsp
+            self._repo.update(worker.config)
         worker.start()
         worker.config.enabled = True
         self._repo.update(worker.config)
@@ -180,3 +194,36 @@ class CameraManager:
             enabled=cfg.enabled,
             motion=cfg.motion,
         )
+
+    def _normalize_rtsp_url(self, url: str) -> str:
+        """
+        Replace localhost/127.0.0.1 in RTSP URLs with configured media service host.
+        Prevents broken links when running inside Docker containers.
+        """
+        parsed = urlparse(url)
+        if parsed.scheme.lower() != "rtsp":
+            return url
+        if not parsed.hostname:
+            return url
+
+        if parsed.hostname not in {"127.0.0.1", "localhost"}:
+            return url
+
+        target_host = self._settings.RTSP_LOCALHOST_REWRITE_HOST
+        if not target_host:
+            return url
+
+        user_info = ""
+        if parsed.username:
+            user_info = parsed.username
+            if parsed.password:
+                user_info += f":{parsed.password}"
+            user_info += "@"
+
+        port_part = f":{parsed.port}" if parsed.port else ""
+        new_netloc = f"{user_info}{target_host}{port_part}"
+        normalized = parsed._replace(netloc=new_netloc)
+        result = urlunparse(normalized)
+
+        logger.warning("RTSP host rewritten from localhost to '%s': %s -> %s", target_host, url, result)
+        return result
