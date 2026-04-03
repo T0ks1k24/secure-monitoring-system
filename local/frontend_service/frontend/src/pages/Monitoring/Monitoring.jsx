@@ -101,13 +101,11 @@ export default function Monitoring() {
             const preserved = allCameras.filter((cam) => previousIds.has(cam.id));
             if (preserved.length > 0) return preserved;
 
-            const preferred = cameraId
-                ? allCameras.find((cam) => cam.id === String(cameraId))
-                : null;
-
-            if (preferred) {
-                const rest = allCameras.filter((cam) => cam.id !== preferred.id);
-                return [preferred, ...rest].slice(0, 2);
+            if (cameraId) {
+                const preferred = allCameras.find((cam) => cam.id === String(cameraId));
+                if (preferred) {
+                    return [preferred];
+                }
             }
 
             return allCameras.slice(0, 2);
@@ -469,6 +467,7 @@ export default function Monitoring() {
                     selectedCameras={selectedCameras}
                     onClose={() => setIsModalOpen(false)}
                     onSave={handleSaveCameras}
+                    activeCameraIdFromUrl={cameraId}
                 />
             )}
             {isKiosk && (
