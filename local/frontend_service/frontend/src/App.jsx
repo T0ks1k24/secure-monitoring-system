@@ -3,7 +3,7 @@ import TitleBar from "./components/TitleBar/TitleBar"
 import { Routes, Route } from "react-router-dom"
 import Monitoring from "./pages/Monitoring/Monitoring"
 import CamerasGrid from "./pages/CamerasGrid/CamerasGrid"
-import CameraSettings from "./pages/Settings/CameraSettings"
+import Settings from "./pages/Settings/Settings"
 
 export default function App() {
   return (
@@ -14,7 +14,7 @@ export default function App() {
 
           <Route path="/" element={<CamerasGrid />} />
           <Route path="/monitoring/:cameraId" element={<Monitoring />} />
-          <Route path="/settings" element={<CameraSettings/>} />
+          <Route path="/settings" element={<Settings/>} />
 
         </Routes>
       </div>
