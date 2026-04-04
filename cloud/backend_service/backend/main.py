@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import socket
 
 from infrastructure.database import Base, engine
-from infrastructure.db_compat import ensure_events_schema_compat
+from infrastructure.db_compat import ensure_events_schema_compat, ensure_zones_schema_compat
 
 # Import models
 from infrastructure.models.user_model import UserModel
@@ -42,6 +42,7 @@ async def lifespan(app: FastAPI):
 
     Base.metadata.create_all(bind=engine)
     ensure_events_schema_compat()
+    ensure_zones_schema_compat()
     print("Tables created!")
 
     create_default_admin()
