@@ -218,6 +218,18 @@ class ZoneManager:
             metadata={
                 "risk_weight": payload.get("risk_weight"),
                 "max_people_allowed": payload.get("max_people_allowed"),
+                "time_windows": payload.get("time_windows", []),
+                "base_mode": payload.get("base_mode", "STRICT"),
+                "risk_multipliers": payload.get(
+                    "risk_multipliers", {"relaxed": 0.3, "strict": 1.5}
+                ),
+                "people_thresholds": payload.get(
+                    "people_thresholds", {"medium": 2, "high": 5}
+                ),
+                "accumulation": payload.get(
+                    "accumulation", {"decay_per_second": 1.0}
+                ),
+                "cooldown_seconds": payload.get("cooldown_seconds", 5),
             },
         )
 

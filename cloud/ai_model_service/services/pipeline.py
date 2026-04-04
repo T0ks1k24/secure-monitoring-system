@@ -14,6 +14,7 @@ from models.detector import detector
 from services.tracker import tracker_registry, Track
 from services.zone_manager import zone_manager
 from services.risk_engine import risk_engine
+from services.smart_zone_analytics import smart_zone_analytics
 from services.rabbitmq_service import rabbitmq_service
 from schemas.events import (
     DetectRequest, DetectResponse, TrackedObject, SecurityEvent, Zone
@@ -77,6 +78,16 @@ class AnalyzePipeline:
             zone_memberships=zone_memberships,
             frame_timestamp=frame_ts,
             fps=request.stream_fps,
+        )
+        security_events.extend(
+            smart_zone_analytics.analyze(
+                camera_id=camera_id,
+                zones=zones,
+                tracks=confirmed_tracks,
+                zone_memberships=zone_memberships,
+                frame_timestamp=frame_ts,
+                fps=request.stream_fps,
+            )
         )
 
         # ── Step 5: Publish to RabbitMQ ───────────────────────────

@@ -14,7 +14,13 @@ class ZoneRepositoryImpl:
             zone_type=data.zone_type,
             risk_weight=data.risk_weight,
             is_active=data.is_active,
-            max_people_allowed=data.max_people_allowed
+            max_people_allowed=data.max_people_allowed,
+            time_windows=[window.model_dump() for window in data.time_windows],
+            base_mode=data.base_mode,
+            risk_multipliers=data.risk_multipliers.model_dump(),
+            people_thresholds=data.people_thresholds.model_dump(),
+            accumulation=data.accumulation.model_dump(),
+            cooldown_seconds=data.cooldown_seconds,
         )
 
         db.add(zone)

@@ -50,6 +50,28 @@ def ensure_events_schema_compat() -> None:
             )
         )
 
+
+def ensure_zones_schema_compat() -> None:
+    """
+    Bring legacy `zones` table shape in sync with current model.
+    Safe to run on every startup.
+    """
+    if engine.dialect.name != "postgresql":
+        return
+
+    statements = [
+        "ALTER TABLE IF EXISTS zones ADD COLUMN IF NOT EXISTS time_windows JSON DEFAULT '[]'::json",
+        "ALTER TABLE IF EXISTS zones ADD COLUMN IF NOT EXISTS base_mode VARCHAR DEFAULT 'STRICT'",
+        "ALTER TABLE IF EXISTS zones ADD COLUMN IF NOT EXISTS risk_multipliers JSON DEFAULT json_build_object('relaxed', 0.3, 'strict', 1.5)",
+        "ALTER TABLE IF EXISTS zones ADD COLUMN IF NOT EXISTS people_thresholds JSON DEFAULT json_build_object('medium', 2, 'high', 5)",
+        "ALTER TABLE IF EXISTS zones ADD COLUMN IF NOT EXISTS accumulation JSON DEFAULT json_build_object('decay_per_second', 1.0)",
+        "ALTER TABLE IF EXISTS zones ADD COLUMN IF NOT EXISTS cooldown_seconds DOUBLE PRECISION DEFAULT 5.0",
+    ]
+
+    with engine.begin() as conn:
+        for sql in statements:
+            conn.execute(text(sql))
+
         conn.execute(
             text(
                 """
