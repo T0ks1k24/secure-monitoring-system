@@ -16,130 +16,22 @@
 
 .camera-grid {
   flex: 1;
-  display: grid;
-  gap: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 100%;
   width: 100%;
-  grid-auto-rows: minmax(0, 1fr);
-  align-content: center;
-  justify-content: center;
   box-sizing: border-box;
-  grid-auto-rows: max-content;
-
-  &.grid-1 {
-    grid-template-columns: minmax(0, 0.9fr);
-    .camera-tile { height: fit-content; max-height: 100%; }
-  }
-
-  &.grid-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    .camera-tile { height: fit-content; }
-  }
-
-  &.grid-3 {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr); 
-    align-content: stretch;
-    justify-items: stretch;
-
-    .camera-tile { 
-      height: 100%; 
-      min-height: 0;
-    }
-
-    .camera-tile:nth-child(3) {
-      grid-column: 1 / span 2;
-      width: 50%;
-      justify-self: center;
-      .video-inner {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        width: 100%;
-        height: 100%;
-        
-        video, iframe {
-          width: auto; 
-          height: 100%; 
-          max-width: 100%;
-          object-fit: contain;
-        }
-      }
-    }
-  }
-
-  &.grid-4 {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    align-content: stretch;
-    justify-items: stretch;
-    .camera-tile { 
-      height: 100%; 
-      min-height: 0;
-    }
-  }
-
-  &.focused-mode {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding-top: 60px;
-
-    .camera-tile.focused {
-      flex: 4;
-      height: fit-content;
-
-      .video-inner video,
-      .video-inner iframe {
-        max-height: 90vh;
-        object-fit: contain;
-      }
-    }
-
-    .side-cameras {
-      flex: 1.2;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-
-      .camera-tile {
-        width: 100%;
-        height: fit-content;
-
-        .video-inner video,
-        .video-inner iframe {
-          max-height: 25vh;
-        }
-      }
-    }
-  }
 }
 
 .camera-tile {
   position: relative;
   background: #000;
   width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-
-  aspect-ratio: 16 / 9;
-
-  &.active { 
-    z-index: 10;
-    &::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border: 3px solid #2563eb;
-      pointer-events: none;
-      z-index: 15;
-    }
-    .video-inner canvas {
-      pointer-events: all;
-      z-index: 30;
-    }
-  }
 
   .video-inner {
     position: relative;
@@ -153,7 +45,6 @@
     justify-content: center;
 
     video, iframe {
-      position: absolute;
       width: 100%;
       height: 100%;
       max-height: 100%;
@@ -180,30 +71,9 @@
     border-top: 1px solid #1e293b;
     width: 100%;
     box-sizing: border-box;
-    position: relative;
   }
 }
-.camera-selection-list {
-  &::-webkit-scrollbar { width: 6px; }
-  &::-webkit-scrollbar-track { background: #0f172a; }
-  &::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
 
-  .zone-item {
-    border: 1px solid transparent;
-    margin-bottom: 6px;
-    transition: all 0.2s ease;
-    
-    &:hover {
-      background: #1e293b;
-      border-color: #334155;
-    }
-    
-    &.selected {
-      background: rgba(37, 99, 235, 0.1);
-      border-color: #2563eb;
-    }
-  }
-}
 .sidebar-trigger {
   width: 36px;
   min-width: 36px;
@@ -249,33 +119,33 @@
 }
 
 .kiosk-exit-zone {
-    position: fixed;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 300px;
-    height: 60px;
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 60px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    button {
-        background: rgba(0, 0, 0, 0.75);
-        color: white;
-        border: 1px solid #334155;
-        padding: 10px 24px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 14px;
-        backdrop-filter: blur(4px);
-        white-space: nowrap;
+  button {
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    border: 1px solid #334155;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    backdrop-filter: blur(4px);
+    white-space: nowrap;
 
-        &:hover {
-            background: rgba(239, 68, 68, 0.85);
-            border-color: #ef4444;
-        }
+    &:hover {
+      background: rgba(239, 68, 68, 0.85);
+      border-color: #ef4444;
     }
+  }
 }
 
 .start-btn, .zone-btn, .delete-btn {
@@ -321,82 +191,93 @@
   justify-content: space-between;
   align-items: center;
 }
-.modal-box {
-    background: #1e293b;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    max-width: 380px;
-    width: 100%;
-    text-align: center;
-    border: 1px solid #334155;
 
-    p {
-        color: white;
-        margin-bottom: 25px;
-        font-size: 16px;
-        line-height: 1.5;
-    }
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-box {
+  background: #1e293b;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  border: 1px solid #334155;
+
+  p {
+    color: white;
+    margin-bottom: 25px;
+    font-size: 16px;
+    line-height: 1.5;
+  }
 }
 
 .modal-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
 
-    button {
-        flex: 1;
-        margin: 0;
-        padding: 12px;
-        border-radius: 6px;
-        font-weight: bold;
-        cursor: pointer;
-    }
+  button {
+    flex: 1;
+    margin: 0;
+    padding: 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+  }
 }
 
 .zones-list {
-    margin-top: 20px;
-    h3 { color: #94a3b8; font-size: 13px; margin-bottom: 12px; text-transform: uppercase; }
-    ul { list-style: none; padding: 0; }
+  margin-top: 20px;
+  h3 { color: #94a3b8; font-size: 13px; margin-bottom: 12px; text-transform: uppercase; }
+  ul { list-style: none; padding: 0; }
 }
 
 .zone-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0f172a;
+  border: 1px solid #334155;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+
+  .zone-info {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #0f172a;
-    border: 1px solid #334155;
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    border-radius: 8px;
+    flex-direction: column;
+    strong { color: white; font-size: 15px; }
+    span { color: #64748b; font-size: 11px; margin-top: 2px; }
+  }
 
-    .zone-info {
-        display: flex;
-        flex-direction: column;
-        strong { color: white; font-size: 15px; } 
-        span { color: #64748b; font-size: 11px; margin-top: 2px; } 
+  .zone-actions {
+    display: flex;
+    gap: 6px;
+
+    button {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      border: none;
+      color: white;
+      cursor: pointer;
+      transition: 0.2s;
+
+      &.edit-mini { background: #334155; &:hover { background: #475569; } }
+      &.delete-mini { background: #7f1d1d; &:hover { background: #991b1b; } }
     }
-
-    .zone-actions {
-        display: flex;
-        gap: 6px;
-
-        button {
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
-            border: none;
-            color: white;
-            cursor: pointer;
-            transition: 0.2s;
-
-            &.edit-mini { background: #334155; &:hover { background: #475569; } }
-            &.delete-mini { background: #7f1d1d; &:hover { background: #991b1b; } }
-        }
-    }
+  }
 }
 
 .events-status {

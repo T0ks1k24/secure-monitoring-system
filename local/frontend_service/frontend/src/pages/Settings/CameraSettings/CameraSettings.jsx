@@ -6,7 +6,7 @@ import {
   useStartCameraMutation,
   useStopCameraMutation,
   useDeleteCameraMutation
-} from "../../services/camerasApi";
+} from "../../../services/camerasApi";
 import "./CameraSettings.scss";
 import AddCameraModal from "./AddCameraModal/AddCameraModal";
 

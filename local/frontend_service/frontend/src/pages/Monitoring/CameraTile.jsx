@@ -9,13 +9,11 @@ const getCenterOfPolygon = (points) => {
 };
 
 export default function CameraTile({ 
-    camera, isActive, isFocused, onSelect, onDoubleClick, 
-    isZoneMenuOpen, currentDrawingPoints, onPointAdd,
+    camera, isFocused, isZoneMenuOpen, currentDrawingPoints, onPointAdd,
     mode, editingZoneId, isPanelOpen 
 }) {
     const mediaRef = useRef(null);
     const canvasRef = useRef(null);
-    const clickTimer = useRef(null);
     const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
     const { data: zones = [] } = useGetZonesQuery(camera.zoneCameraId || camera.id);
 
@@ -32,9 +30,7 @@ export default function CameraTile({
         };
         const resizeObserver = new ResizeObserver(() => updateSize());
         resizeObserver.observe(media);
-
         updateSize();
-
         return () => resizeObserver.disconnect();
     }, [isFocused, isPanelOpen]);
 
@@ -43,116 +39,85 @@ export default function CameraTile({
         if (!canvas) return;
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (isActive) {
-            zones.forEach(zone => {
-                if (!zone.points || zone.points.length < 2) return;
-                const { width, height } = canvas;
 
-                let color = "red";
-                if (zone.type === "warning") color = "yellow";
-                else if (zone.type === "safe") color = "limegreen";
+        zones.forEach(zone => {
+            if (!zone.points || zone.points.length < 2) return;
+            const { width, height } = canvas;
 
-                if (mode === "edit") {
-                    ctx.globalAlpha = zone.id === editingZoneId ? 1.0 : 0.4;
-                    ctx.lineWidth = zone.id === editingZoneId ? 4 : 2;
-                } else {
-                    ctx.globalAlpha = 1.0;
-                    ctx.lineWidth = 2;
-                }
+            let color = "red";
+            if (zone.type === "warning") color = "yellow";
+            else if (zone.type === "safe") color = "limegreen";
 
+            if (mode === "edit") {
+                ctx.globalAlpha = zone.id === editingZoneId ? 1.0 : 0.4;
+                ctx.lineWidth = zone.id === editingZoneId ? 4 : 2;
+            } else {
+                ctx.globalAlpha = 1.0;
+                ctx.lineWidth = 2;
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(zone.points[0][0] * width, zone.points[0][1] * height);
+            for (let i = 1; i < zone.points.length; i++) {
+                ctx.lineTo(zone.points[i][0] * width, zone.points[i][1] * height);
+            }
+            if (zone.points.length > 2) ctx.closePath();
+            ctx.strokeStyle = color;
+            ctx.stroke();
+
+            zone.points.forEach(([relX, relY]) => {
                 ctx.beginPath();
-                ctx.moveTo(zone.points[0][0] * width, zone.points[0][1] * height);
-                for (let i = 1; i < zone.points.length; i++) {
-                    ctx.lineTo(zone.points[i][0] * width, zone.points[i][1] * height);
-                }
-                if (zone.points.length > 2) ctx.closePath();
-                ctx.strokeStyle = color;
-                ctx.stroke();
-
-                zone.points.forEach(([relX, relY]) => {
-                    ctx.beginPath();
-                    ctx.arc(relX * width, relY * height, 4, 0, Math.PI * 2);
-                    ctx.fillStyle = color;
-                    ctx.fill();
-                });
-
-                if (isZoneMenuOpen) {
-                    const absPoints = zone.points.map(([rx, ry]) => [rx * width, ry * height]);
-                    const center = getCenterOfPolygon(absPoints);
-                    ctx.font = "bold 16px sans-serif";
-                    ctx.fillStyle = "white";
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "middle";
-
-                    ctx.shadowColor = "black";
-                    ctx.shadowBlur = 4;
-                    ctx.shadowOffsetX = 1;
-                    ctx.shadowOffsetY = 1;
-                    
-                    ctx.fillText(zone.name, center.x, center.y);
-
-                    ctx.shadowBlur = 0;
-                    ctx.shadowOffsetX = 0;
-                    ctx.shadowOffsetY = 0;
-                }
+                ctx.arc(relX * width, relY * height, 4, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
             });
 
-            ctx.globalAlpha = 1.0;
+            if (isZoneMenuOpen) {
+                const absPoints = zone.points.map(([rx, ry]) => [rx * width, ry * height]);
+                const center = getCenterOfPolygon(absPoints);
+                ctx.font = "bold 16px sans-serif";
+                ctx.fillStyle = "white";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.shadowColor = "black";
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetX = 1;
+                ctx.shadowOffsetY = 1;
+                ctx.fillText(zone.name, center.x, center.y);
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+            }
+        });
 
-            if (currentDrawingPoints && currentDrawingPoints.length > 0) {
+        ctx.globalAlpha = 1.0;
+
+        if (currentDrawingPoints && currentDrawingPoints.length > 0) {
+            ctx.beginPath();
+            ctx.moveTo(currentDrawingPoints[0][0], currentDrawingPoints[0][1]);
+            for (let i = 1; i < currentDrawingPoints.length; i++) {
+                ctx.lineTo(currentDrawingPoints[i][0], currentDrawingPoints[i][1]);
+            }
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            currentDrawingPoints.forEach(([x, y]) => {
                 ctx.beginPath();
-                ctx.moveTo(currentDrawingPoints[0][0], currentDrawingPoints[0][1]);
-                for (let i = 1; i < currentDrawingPoints.length; i++) {
-                    ctx.lineTo(currentDrawingPoints[i][0], currentDrawingPoints[i][1]);
-                }
-                
-                ctx.strokeStyle = "red";
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                currentDrawingPoints.forEach(([x, y]) => {
-                    ctx.beginPath();
-                    ctx.arc(x, y, 5, 0, Math.PI * 2);
-                    ctx.fillStyle = "red";
-                    ctx.fill();
-                });
-            }
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = "red";
+                ctx.fill();
+            });
         }
-    }, [zones, isActive, isZoneMenuOpen, currentDrawingPoints, mode, editingZoneId, canvasSize]);
+    }, [zones, isZoneMenuOpen, currentDrawingPoints, mode, editingZoneId, canvasSize]);
 
-    const handleClicks = (e, type) => {
-        e.stopPropagation();
-
-        if (mode === "draw") {
-            if (type === 'single') {
-                const rect = canvasRef.current.getBoundingClientRect();
-                onPointAdd([e.clientX - rect.left, e.clientY - rect.top]);
-            }
-            return;
-        }
-
-        if (type === 'single') {
-            if (clickTimer.current) {
-                clearTimeout(clickTimer.current);
-            }
-            clickTimer.current = setTimeout(() => {
-                onSelect(camera.id);
-                clickTimer.current = null;
-            }, 200);
-        } else if (type === 'double') {
-            if (clickTimer.current) {
-                clearTimeout(clickTimer.current);
-                clickTimer.current = null;
-            }
-            onDoubleClick(camera.id);
-        }
+    const handleClick = (e) => {
+        if (mode !== "draw") return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        onPointAdd([e.clientX - rect.left, e.clientY - rect.top]);
     };
 
     return (
-        <div 
-            className={`camera-tile ${isActive ? 'active' : ''} ${isFocused ? 'focused' : ''}`}
-            onClick={(e) => handleClicks(e, 'single')}
-            onDoubleClick={(e) => handleClicks(e, 'double')}
-        >
+        <div className="camera-tile">
             <div className="video-inner">
                 {camera.webrtcUrl ? (
                     <iframe
@@ -175,7 +140,11 @@ export default function CameraTile({
                         controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
                     />
                 )}
-                <canvas ref={canvasRef} />
+                <canvas
+                    ref={canvasRef}
+                    onClick={handleClick}
+                    style={{ pointerEvents: mode === "draw" ? "auto" : "none" }}
+                />
             </div>
             <div className="camera-label">{camera.name || `Камера ${camera.id}`}</div>
         </div>

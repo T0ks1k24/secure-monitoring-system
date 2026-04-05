@@ -29,7 +29,20 @@ export default function CamerasGrid() {
 
   const slotCount = parseInt(localStorage.getItem("grid_slot_count") || DEFAULT_SLOT_COUNT);
   const { cols, rows } = getGridLayout(slotCount);
-  const slots = Array.from({ length: slotCount }, (_, i) => cameras[i] || null);
+  const slotConfig = (() => {
+    try {
+      const saved = localStorage.getItem("slot_config");
+      if (!saved) return Array(slotCount).fill(null);
+      const parsed = JSON.parse(saved);
+      const result = Array(slotCount).fill(null);
+      parsed.forEach((id, i) => { if (i < slotCount) result[i] = id; });
+      return result;
+    } catch { return Array(slotCount).fill(null); }
+  })();
+
+  const slots = slotConfig.map(id =>
+    id ? cameras.find(c => String(c.id) === String(id)) || null : null
+  );
 
   if (isLoading) return <div className="loading">Завантаження камер...</div>;
 

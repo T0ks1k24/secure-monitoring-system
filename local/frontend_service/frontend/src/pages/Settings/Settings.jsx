@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import CameraSettings from "./CameraSettings";
+import CameraSettings from "./CameraSettings/CameraSettings";
+import DisplaySettings from "./DisplaySettings/DisplaySettings";
 import "./Settings.scss";
 
 const TABS = [
@@ -31,36 +32,6 @@ export default function Settings() {
         {activeTab === "cameras" && <CameraSettings />}
         {activeTab === "display" && <DisplaySettings />}
         {activeTab === "connection" && <ConnectionSettings />}
-      </div>
-    </div>
-  );
-}
-
-function DisplaySettings() {
-  const current = parseInt(localStorage.getItem("grid_slot_count") || "9");
-  const [slots, setSlots] = useState(current);
-
-  const handleSave = (val) => {
-    setSlots(val);
-    localStorage.setItem("grid_slot_count", String(val));
-  };
-
-  return (
-    <div className="tab-content">
-      <h2>Відображення</h2>
-      <div className="setting-row">
-        <label>Кількість слотів на головному екрані</label>
-        <div className="slot-options">
-          {[4, 6, 9, 12, 16].map(n => (
-            <button
-              key={n}
-              className={`slot-btn ${slots === n ? "active" : ""}`}
-              onClick={() => handleSave(n)}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );
