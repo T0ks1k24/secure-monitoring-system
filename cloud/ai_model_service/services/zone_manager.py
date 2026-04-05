@@ -15,12 +15,6 @@ from schemas.events import Zone
 
 logger = logging.getLogger(__name__)
 
-ZONE_TYPE_MAP = {
-    "danger": "restricted",
-    "warning": "perimeter",
-    "safe": "safe_zone",
-}
-
 
 def point_in_polygon(px: float, py: float, polygon: List[List[float]]) -> bool:
     n = len(polygon)
@@ -162,10 +156,7 @@ class ZoneManager:
 
         endpoints = []
         for cid in candidate_ids:
-            endpoints.extend((
-                f"/zones/{cid}",
-                f"/api/zones/{cid}",
-            ))
+            endpoints.append(f"/zones/{cid}")
         last_error: Exception | None = None
 
         try:
@@ -205,14 +196,13 @@ class ZoneManager:
 
     def _parse_backend_zone(self, payload: dict[str, Any]) -> Zone:
         zone_type = payload.get("zone_type", "restricted")
-        normalized_zone_type = ZONE_TYPE_MAP.get(zone_type, zone_type)
         enabled = payload.get("enabled", payload.get("is_active", True))
 
         return Zone(
             id=str(payload["id"]),
             camera_id=str(payload["camera_id"]),
             name=payload["name"],
-            zone_type=normalized_zone_type,
+            zone_type=zone_type,
             polygon=payload.get("polygon") or [],
             enabled=bool(enabled),
             metadata={

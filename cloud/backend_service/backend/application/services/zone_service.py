@@ -23,17 +23,8 @@ class ZoneService:
         return result
 
     async def delete(self, zone_id: int):
-        # We need the camera_id before deleting to notify AI
-        # However, the repo delete returns True/False.
-        # Let's check how to get camera_id.
-        from infrastructure.database import SessionLocal
-        from infrastructure.models.zone_model import ZoneModel
-        db = SessionLocal()
-        zone = db.query(ZoneModel).filter(ZoneModel.id == zone_id).first()
-        camera_id = zone.camera_id if zone else None
-        db.close()
-
-        result = zone_repo.delete(zone_id)
-        if result and camera_id:
+        camera_id = zone_repo.delete(zone_id)
+        if camera_id:
             asyncio.create_task(rabbitmq_client.publish_zone_update(camera_id))
-        return result
+            return True
+        return False

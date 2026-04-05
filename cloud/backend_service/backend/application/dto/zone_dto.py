@@ -1,6 +1,32 @@
 from typing import List
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+ZONE_TYPE_ALIASES = {
+    "danger": "restricted",
+    "warning": "perimeter",
+    "safe": "safe_zone",
+}
+
+CANONICAL_ZONE_TYPES = {
+    "restricted",
+    "entrance",
+    "parking",
+    "pedestrian",
+    "perimeter",
+    "counting_line",
+    "safe_zone",
+}
+
+
+def normalize_zone_type_value(value: str) -> str:
+    normalized = str(value).strip().lower()
+    normalized = ZONE_TYPE_ALIASES.get(normalized, normalized)
+    if normalized not in CANONICAL_ZONE_TYPES:
+        allowed = ", ".join(sorted(CANONICAL_ZONE_TYPES | ZONE_TYPE_ALIASES.keys()))
+        raise ValueError(f"Unsupported zone_type '{value}'. Allowed values: {allowed}")
+    return normalized
 
 
 class TimeWindowDTO(BaseModel):
@@ -58,7 +84,13 @@ class ZoneBaseDTO(BaseModel):
         description="Полігон зони у нормалізованих координатах [x,y] (0..1). Мінімум 3 точки.",
         examples=[[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]],
     )
-    zone_type: str = Field(..., description="Тип зони (restricted/perimeter/parking тощо).")
+    zone_type: str = Field(
+        ...,
+        description=(
+            "Тип зони. Канонічні значення: restricted/perimeter/parking/entrance/"
+            "pedestrian/counting_line/safe_zone. Legacy aliases danger/warning/safe також приймаються."
+        ),
+    )
     risk_weight: float = Field(
         ...,
         description="Загальна вага ризику для legacy-правил. Використовується існуючою логікою сумісності.",
@@ -103,6 +135,11 @@ class ZoneBaseDTO(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @field_validator("zone_type", mode="before")
+    @classmethod
+    def normalize_zone_type(cls, value: str) -> str:
+        return normalize_zone_type_value(value)
+
 
 class ZoneCreateDTO(ZoneBaseDTO):
     pass
@@ -140,6 +177,13 @@ class ZoneUpdateDTO(BaseModel):
         default=None,
         description="Новий anti-spam cooldown у секундах.",
     )
+
+    @field_validator("zone_type", mode="before")
+    @classmethod
+    def normalize_zone_type(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return normalize_zone_type_value(value)
 
 
 class ZoneResponseDTO(ZoneBaseDTO):
