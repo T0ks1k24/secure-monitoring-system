@@ -1,6 +1,5 @@
 from infrastructure.database import SessionLocal
 from infrastructure.models.zone_model import ZoneModel
-from domain.entities.zone import Zone
 
 class ZoneRepositoryImpl:
 
@@ -64,10 +63,12 @@ class ZoneRepositoryImpl:
 
         if not zone:
             db.close()
-            return False
+            return None
+
+        camera_id = zone.camera_id
 
         db.delete(zone)
         db.commit()
         db.close()
 
-        return True
+        return camera_id

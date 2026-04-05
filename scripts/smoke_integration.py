@@ -75,7 +75,7 @@ async def main() -> None:
                 "name": "Smoke Zone",
                 "camera_id": "camera1",
                 "polygon": [[0.1, 0.1], [0.8, 0.1], [0.8, 0.8], [0.1, 0.8]],
-                "zone_type": "danger",
+                "zone_type": "restricted",
                 "risk_weight": 50,
                 "is_active": True,
                 "max_people_allowed": 0,
@@ -83,10 +83,10 @@ async def main() -> None:
         )
         zone_resp.raise_for_status()
 
-        ai_zone_resp = await client.get(f"{AI_URL}/api/v1/zones/camera1")
-        ai_zone_resp.raise_for_status()
-        zones = ai_zone_resp.json()
-        assert zones, "AI service did not load zones from backend"
+        zones_resp = await client.get(f"{BACKEND_URL}/zones/camera1")
+        zones_resp.raise_for_status()
+        zones = zones_resp.json()
+        assert zones, "Backend did not return zones after create"
 
         add_camera_resp = await client.post(
             f"{FRAME_EXTRACTOR_URL}/api/v1/cameras",

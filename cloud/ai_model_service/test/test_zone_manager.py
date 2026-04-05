@@ -59,7 +59,7 @@ def zone_factory():
             "id": id,
             "camera_id": "cam1",
             "name": name,
-            "zone_type": "danger",
+            "zone_type": "restricted",
             "polygon": [[0, 0], [1, 0], [1, 1], [0, 1]],
             "is_active": enabled,
             "risk_weight": 50,

@@ -36,3 +36,23 @@ def test_zone_update_dto_accepts_partial_analytics_config():
     assert dto.risk_multipliers is not None
     assert dto.risk_multipliers.relaxed == 0.4
     assert dto.cooldown_seconds == 10
+
+
+def test_zone_create_dto_normalizes_legacy_zone_type_aliases():
+    dto = ZoneCreateDTO(
+        name="Zone Alias",
+        camera_id="1",
+        polygon=[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]],
+        zone_type="danger",
+        risk_weight=25.0,
+        is_active=True,
+        max_people_allowed=1,
+    )
+
+    assert dto.zone_type == "restricted"
+
+
+def test_zone_update_dto_normalizes_legacy_zone_type_aliases():
+    dto = ZoneUpdateDTO(zone_type="safe")
+
+    assert dto.zone_type == "safe_zone"
