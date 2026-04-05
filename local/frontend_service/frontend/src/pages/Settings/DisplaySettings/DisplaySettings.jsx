@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect} from "react";
 import { useGetCamerasQuery } from "../../../services/camerasApi";
 import SlotCameraPickerModal from "./SlotCameraPickerModal";
+import { getItem, setItem } from "../../../utils/windowStorage";
 
 const getGridLayout = (count) => {
     if (count === 4)  return { cols: 2, rows: 2 };
@@ -13,7 +14,7 @@ const getGridLayout = (count) => {
 
 const loadSlotConfig = (count) => {
     try {
-        const saved = localStorage.getItem("slot_config");
+        const saved = getItem("slot_config");
         if (!saved) return Array(count).fill(null);
         const parsed = JSON.parse(saved);
         const result = Array(count).fill(null);
@@ -22,48 +23,64 @@ const loadSlotConfig = (count) => {
     } catch { return Array(count).fill(null); }
 };
 
-const saveSlotConfig = (config) => {
-    localStorage.setItem("slot_config", JSON.stringify(config));
+const saveSlotConfig = async (config) => {
+    await setItem("slot_config", JSON.stringify(config));
 };
 
 export default function DisplaySettings() {
     const { data: cameras = [] } = useGetCamerasQuery();
 
-    const [slotCount, setSlotCount] = useState(() =>
-        parseInt(localStorage.getItem("grid_slot_count") || "9")
-    );
-    const [slots, setSlots] = useState(() => loadSlotConfig(
-        parseInt(localStorage.getItem("grid_slot_count") || "9")
-    ));
+    const [slotCount, setSlotCount] = useState(9);
+    const [slots, setSlots] = useState([]);
+    const [initialized, setInitialized] = useState(false);
     const [pickerSlotIndex, setPickerSlotIndex] = useState(null);
-    
-    const [dragFromIndex, setDragFromIndex] = useState(null);
+    const [dragFromIndex, setDragFromIndex] = useState(null);     
 
-    const handleSlotCountChange = (count) => {
+    useEffect(() => {
+        const init = async () => {
+            const count = parseInt(await getItem("grid_slot_count") || "9");
+            setSlotCount(count);
+            try {
+                const saved = await getItem("slot_config");
+                if (!saved) { setSlots(Array(count).fill(null)); setInitialized(true); return; }
+                const parsed = JSON.parse(saved);
+                const result = Array(count).fill(null);
+                parsed.forEach((id, i) => { if (i < count) result[i] = id; });
+                setSlots(result);
+            } catch {
+                setSlots(Array(count).fill(null));
+            }
+            setInitialized(true);
+        };
+        init();
+    }, []);
+
+    if (!initialized) return null;
+
+    const handleSlotCountChange = async (count) => {
         setSlotCount(count);
-        localStorage.setItem("grid_slot_count", String(count));
+        await setItem("grid_slot_count", String(count));
         const newSlots = Array(count).fill(null);
         slots.forEach((id, i) => { if (i < count) newSlots[i] = id; });
         setSlots(newSlots);
-        saveSlotConfig(newSlots);
+        await saveSlotConfig(newSlots);
     };
 
-    const handleSelectCamera = (cameraId) => {
+    const handleSelectCamera = async (cameraId) => {
         if (pickerSlotIndex === null) return;
         const newSlots = [...slots];
         newSlots[pickerSlotIndex] = cameraId;
         setSlots(newSlots);
-        saveSlotConfig(newSlots);
+        await saveSlotConfig(newSlots);
         setPickerSlotIndex(null);
     };
 
-    const handleRemoveCamera = (slotIndex) => {
+    const handleRemoveCamera = async (slotIndex) => {
         const newSlots = [...slots];
         newSlots[slotIndex] = null;
         setSlots(newSlots);
-        saveSlotConfig(newSlots);
+        await saveSlotConfig(newSlots);
     };
-
     const occupiedCameraIds = slots.filter(Boolean);
     const { cols, rows } = getGridLayout(slotCount);
 
@@ -114,14 +131,14 @@ export default function DisplaySettings() {
                                 draggable={!!cam}
                                 onDragStart={() => setDragFromIndex(i)}
                                 onDragOver={(e) => e.preventDefault()}
-                                onDrop={() => {
+                                onDrop={async () => {
                                     if (dragFromIndex === null || dragFromIndex === i) return;
                                     const newSlots = [...slots];
                                     const temp = newSlots[dragFromIndex];
                                     newSlots[dragFromIndex] = newSlots[i];
                                     newSlots[i] = temp;
                                     setSlots(newSlots);
-                                    saveSlotConfig(newSlots);
+                                    await saveSlotConfig(newSlots);
                                     setDragFromIndex(null);
                                 }}
                                 onDragEnd={() => setDragFromIndex(null)}

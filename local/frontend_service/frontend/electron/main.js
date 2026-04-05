@@ -1,12 +1,12 @@
 const {app, BrowserWindow, Menu, ipcMain} = require("electron");
 const path = require("path");
 
-const { startStream } = require('./rtspStreamer');
-
 let mainWindow
+let windowCounter = 0;
 
 function setupWindowHandlers(window) {
     window.webContents.setWindowOpenHandler(({ url }) => {
+        const newId = ++windowCounter;
         return {
             action: 'allow',
             overrideBrowserWindowOptions: {
@@ -17,31 +17,38 @@ function setupWindowHandlers(window) {
                 webPreferences: {
                     preload: path.join(__dirname, "preload.js"),
                     nodeIntegration: false,
-                    contextIsolation: true
+                    contextIsolation: true,
                 }
             }
         };
     });
 
     window.webContents.on('did-create-window', (newWin) => {
+        const newId = windowCounter;
+        newWin.webContents.on('did-finish-load', () => {
+            newWin.webContents.executeJavaScript(`window.__WINDOW_ID__ = '${newId}';`);
+        });
         setupWindowHandlers(newWin);
     });
 }
 
-function createWindow(){
+function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1000,
-        height: 700, 
+        height: 700,
         frame: false,
         webPreferences: {
-            preload: path.join(__dirname, "preload.js")
+            preload: path.join(__dirname, "preload.js"),
         }
     });
 
-    setupWindowHandlers(mainWindow);
+    mainWindow.webContents.on('did-finish-load', () => {
+        mainWindow.webContents.executeJavaScript(`window.__WINDOW_ID__ = '0';`);
+    });
 
+    setupWindowHandlers(mainWindow);
     mainWindow.maximize();
-    Menu.setApplicationMenu(null)
+    Menu.setApplicationMenu(null);
     mainWindow.loadURL("http://localhost:5173/");
 }
 
@@ -78,12 +85,13 @@ ipcMain.on("window:close", (event) => {
   if (win) win.close();
 });
 
+ipcMain.handle("window:get-id", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return String(win.id); 
+});
+
 app.whenReady().then(() => {
     createWindow()
-
-    // const testVideo = path.join(__dirname, '../cameras/cam1.mp4');
-    // startStream('cam_01', testVideo);
-
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })

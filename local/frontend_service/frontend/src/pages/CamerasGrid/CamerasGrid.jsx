@@ -1,5 +1,7 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGetCamerasQuery } from "../../services/camerasApi";
+import { getItem } from "../../utils/windowStorage";
 import "./CamerasGrid.scss";
 
 const WEBRTC_BASE = (
@@ -27,19 +29,28 @@ export default function CamerasGrid() {
   const navigate = useNavigate();
   const { data: cameras = [], isLoading } = useGetCamerasQuery();
 
-  const slotCount = parseInt(localStorage.getItem("grid_slot_count") || DEFAULT_SLOT_COUNT);
-  const { cols, rows } = getGridLayout(slotCount);
-  const slotConfig = (() => {
-    try {
-      const saved = localStorage.getItem("slot_config");
-      if (!saved) return Array(slotCount).fill(null);
-      const parsed = JSON.parse(saved);
-      const result = Array(slotCount).fill(null);
-      parsed.forEach((id, i) => { if (i < slotCount) result[i] = id; });
-      return result;
-    } catch { return Array(slotCount).fill(null); }
-  })();
+  const [slotCount, setSlotCount] = useState(DEFAULT_SLOT_COUNT);
+  const [slotConfig, setSlotConfig] = useState([]);
 
+  useEffect(() => {
+    const init = async () => {
+      const count = parseInt(await getItem("grid_slot_count") || String(DEFAULT_SLOT_COUNT));
+      setSlotCount(count);
+      try {
+        const saved = await getItem("slot_config");
+        if (!saved) { setSlotConfig(Array(count).fill(null)); return; }
+        const parsed = JSON.parse(saved);
+        const result = Array(count).fill(null);
+        parsed.forEach((id, i) => { if (i < count) result[i] = id; });
+        setSlotConfig(result);
+      } catch {
+        setSlotConfig(Array(count).fill(null));
+      }
+    };
+    init();
+  }, []);
+
+  const { cols, rows } = getGridLayout(slotCount);
   const slots = slotConfig.map(id =>
     id ? cameras.find(c => String(c.id) === String(id)) || null : null
   );
