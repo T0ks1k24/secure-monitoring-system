@@ -10,10 +10,16 @@ export const zonesApi = createApi({
             transformResponse: (response) => response.map(zone => ({
                 id: zone.id,
                 name: zone.name,
-                type: zone.zone_type,
+                zone_type: zone.zone_type,
                 risk_weight: zone.risk_weight,
                 max_people_allowed: zone.max_people_allowed,
-                points: zone.polygon || []
+                points: zone.polygon || [],
+                base_mode: zone.base_mode,
+                cooldown_seconds: zone.cooldown_seconds,
+                risk_multipliers: zone.risk_multipliers,
+                people_thresholds: zone.people_thresholds,
+                accumulation: zone.accumulation,
+                time_windows: zone.time_windows || [],
             })),
             providesTags: ['Zones'],
         }),

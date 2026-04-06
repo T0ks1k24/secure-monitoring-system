@@ -45,8 +45,10 @@ export default function CameraTile({
             const { width, height } = canvas;
 
             let color = "red";
-            if (zone.type === "warning") color = "yellow";
-            else if (zone.type === "safe") color = "limegreen";
+            if (zone.zone_type === "perimeter") color = "yellow";
+            else if (zone.zone_type === "safe_zone") color = "limegreen";
+            else if (zone.zone_type === "pedestrian") color = "#60a5fa";
+            else if (zone.zone_type === "counting_line") color = "#f59e0b";
 
             if (mode === "edit") {
                 ctx.globalAlpha = zone.id === editingZoneId ? 1.0 : 0.4;
