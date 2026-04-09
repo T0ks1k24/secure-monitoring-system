@@ -5,7 +5,7 @@ export default function TitleBar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isMonitoring = location.pathname.startsWith("/monitoring");
+  const isMonitoring = location.pathname.startsWith("/monitoring") || location.pathname === "/";
   const isSettings = location.pathname.startsWith("/settings");
 
   const openNewWindow = () => {
