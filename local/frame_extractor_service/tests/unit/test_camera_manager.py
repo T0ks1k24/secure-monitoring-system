@@ -183,6 +183,25 @@ class TestCameraManagerUpdate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(w.config.motion.min_contour_area, 9000)
         self.assertEqual(w.config.motion.enabled, True)  # Should remain True (default)
 
+    def test_update_camera_accepts_legacy_flat_motion_fields(self):
+        w = _make_mock_worker(1)
+        self.manager._workers[1] = w  # pylint: disable=protected-access
+
+        req = CameraUpdateRequest(
+            motion_min_contour_area=9000,
+            motion_threshold=33,
+        )
+        self.manager.update_camera(1, req)
+
+        self.assertEqual(w.config.motion.min_contour_area, 9000)
+        self.assertEqual(w.config.motion.diff_threshold, 33)
+        w.update_params.assert_called_once_with(
+            fps=None,
+            resize_width=None,
+            jpeg_quality=None,
+            motion=w.config.motion,
+        )
+
     def test_update_camera_unknown_raises_key_error(self):
         req = CameraUpdateRequest(fps=1.0)
         with self.assertRaises(KeyError):

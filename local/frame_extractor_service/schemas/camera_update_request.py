@@ -12,12 +12,6 @@ class CameraUpdateRequest(CameraParams):
     { "motion": { "min_contour_area": 8000 } }
     ```
     """
-    ai_service_url: str | None = Field(
-        default=None,
-        examples=["http://192.168.1.200:5000/api/v1/detect"],
-        description="The URL of the AI service to which the frames will be sent for processing."
-    )
-    default_reconnect_delay: int | None = Field(default=None, ge=1)
     rtsp: str | None = None
     enabled: Optional[bool] = Field(None, description="Enable or disable the camera processing.")
     name: str | None = None

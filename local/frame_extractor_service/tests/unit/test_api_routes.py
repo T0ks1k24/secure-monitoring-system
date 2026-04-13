@@ -234,3 +234,60 @@ class TestConfigEndpoint(unittest.TestCase):
 
         self.assertEqual(resp.status_code, 200)
         mgr.update_global_config.assert_called_once_with(ai_service_url="http://new-ai")
+
+    def test_update_config_accepts_legacy_default_names(self):
+        mgr = MagicMock()
+        client = TestClient(_get_app(mgr))
+
+        payload = {
+            "fps": 1.0,
+            "resize_width": 640,
+            "jpeg_quality": 75,
+            "reconnect_delay": 9,
+        }
+        resp = client.patch("/config", json=payload)
+
+        self.assertEqual(resp.status_code, 200)
+        mgr.update_global_config.assert_called_once_with(
+            default_fps=1.0,
+            default_resize_width=640,
+            default_jpeg_quality=75,
+            default_reconnect_delay=9,
+        )
+
+
+class TestOpenAPISchemas(unittest.TestCase):
+    """OpenAPI should expose only the clean public request fields."""
+
+    def test_camera_request_schema_hides_legacy_motion_fields(self):
+        app = _get_app(MagicMock())
+        schemas = app.openapi()["components"]["schemas"]
+
+        add_props = schemas["CameraAddRequest"]["properties"]
+        update_props = schemas["CameraUpdateRequest"]["properties"]
+
+        self.assertIn("motion", add_props)
+        self.assertIn("motion", update_props)
+        self.assertNotIn("motion_min_contour_area", add_props)
+        self.assertNotIn("motion_threshold", add_props)
+        self.assertNotIn("motion_blur_size", add_props)
+        self.assertNotIn("motion_frames_to_average", add_props)
+        self.assertNotIn("motion_min_duration", add_props)
+        self.assertNotIn("motion_min_contour_area", update_props)
+        self.assertNotIn("motion_threshold", update_props)
+        self.assertNotIn("motion_blur_size", update_props)
+        self.assertNotIn("motion_frames_to_average", update_props)
+        self.assertNotIn("motion_min_duration", update_props)
+
+    def test_global_config_schema_uses_default_field_names(self):
+        app = _get_app(MagicMock())
+        props = app.openapi()["components"]["schemas"]["GlobalConfigUpdate"]["properties"]
+
+        self.assertIn("default_fps", props)
+        self.assertIn("default_resize_width", props)
+        self.assertIn("default_jpeg_quality", props)
+        self.assertIn("default_reconnect_delay", props)
+        self.assertNotIn("fps", props)
+        self.assertNotIn("resize_width", props)
+        self.assertNotIn("jpeg_quality", props)
+        self.assertNotIn("reconnect_delay", props)
