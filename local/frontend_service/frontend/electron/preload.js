@@ -12,4 +12,5 @@ contextBridge.exposeInMainWorld("windowAPI", {
   close: () => ipcRenderer.send("window:close"),
   toggleKiosk: () => ipcRenderer.send("window:kiosk"),
   onKioskChange: (cb) => ipcRenderer.on("kiosk-changed", (_, val) => cb(val)),
+  getWindowId: () => ipcRenderer.invoke("window:get-id"),
 })
