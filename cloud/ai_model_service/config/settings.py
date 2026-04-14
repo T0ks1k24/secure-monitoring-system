@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     PORT: int = 5000
 
     # ── YOLO ──────────────────────────────────────────────────────
-    MODEL_PATH: str = "yolov8n.pt"
+    MODEL_PATH: str = "yolo26s.pt"
     # Confidence threshold (0.0–1.0). Нижче = більше детекцій, більше хибних.
     DETECTION_CONFIDENCE: float = 0.4
     # IoU threshold для NMS (прибирає дублікати)
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     TRAJECTORY_HISTORY_FRAMES: int = 30
     # Мінімальна швидкість (px/frame) що вважається «рухом»
     TRAJECTORY_MIN_SPEED_PX: float = 5.0
-    
+
     # ── Frame saving ──────────────────────────────────────────────
     # Включає/виключає збереження оброблених кадрів з оверлеями
     SAVE_PROCESSED_FRAMES: bool = False
