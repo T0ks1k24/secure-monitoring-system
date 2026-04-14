@@ -2,13 +2,20 @@
 import unittest
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
-from schemas import CameraAddRequest, CameraConfig, CameraUpdateRequest, MotionConfig
+from schemas import (
+    CameraAddRequest,
+    CameraConfig,
+    CameraStatusResponse,
+    CameraUpdateRequest,
+    MotionUpdateRequest,
+)
+from schemas import MotionConfig
 from core.camera_manager import CameraManager
 from core.camera_stats import CameraStats
 from config import Settings
 
 
-def _make_mock_worker(cam_id: str = "cam1", enabled: bool = True) -> MagicMock:
+def _make_mock_worker(cam_id: int = 1, enabled: bool = True) -> MagicMock:
     """Create a MagicMock simulating a CameraWorker."""
     w = MagicMock()
     w.config = CameraConfig(id=cam_id, rtsp="rtsp://test", enabled=enabled)
@@ -25,6 +32,7 @@ def _make_mock_worker(cam_id: str = "cam1", enabled: bool = True) -> MagicMock:
 
 
 class TestCameraManagerStartup(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager startup logic."""
 
     def setUp(self):
         self.factory = MagicMock()
@@ -32,7 +40,6 @@ class TestCameraManagerStartup(unittest.IsolatedAsyncioTestCase):
         self.ai_client = AsyncMock()
         self.settings = Settings(
             _env_file=None,
-            CAMERAS_CONFIG_PATH="/dev/null",
         )
         self.manager = CameraManager(
             worker_factory=self.factory,
@@ -42,27 +49,40 @@ class TestCameraManagerStartup(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_startup_starts_enabled_cameras_only(self):
-        enabled = CameraConfig(id="e1", rtsp="rtsp://e1", enabled=True)
-        disabled = CameraConfig(id="d1", rtsp="rtsp://d1", enabled=False)
+        enabled = CameraConfig(id=1, rtsp="rtsp://e1", enabled=True)
+        disabled = CameraConfig(id=2, rtsp="rtsp://d1", enabled=False)
         self.repo.load_all.return_value = [enabled, disabled]
 
-        w_enabled = _make_mock_worker("e1")
-        w_disabled = _make_mock_worker("d1", enabled=False)
+        w_enabled = _make_mock_worker(1)
+        w_disabled = _make_mock_worker(2, enabled=False)
         self.factory.create_worker.side_effect = [w_enabled, w_disabled]
 
         await self.manager.startup()
 
         w_enabled.start.assert_called_once()
         w_disabled.start.assert_not_called()
-        self.assertEqual(len(self.manager._workers), 2)
+        self.assertEqual(len(self.manager._workers), 2)  # pylint: disable=protected-access
 
     async def test_startup_with_no_cameras(self):
         self.repo.load_all.return_value = []
         await self.manager.startup()
-        self.assertEqual(len(self.manager._workers), 0)
+        self.assertEqual(len(self.manager._workers), 0)  # pylint: disable=protected-access
+
+    async def test_startup_rewrites_existing_localhost_rtsp(self):
+        bad = CameraConfig(id=1, rtsp="rtsp://localhost:8554/camera1", enabled=False)
+        self.repo.load_all.return_value = [bad]
+        worker = _make_mock_worker(1, enabled=False)
+        self.factory.create_worker.return_value = worker
+
+        await self.manager.startup()
+
+        self.repo.update.assert_called_once()
+        updated_cfg = self.repo.update.call_args.args[0]
+        self.assertEqual(updated_cfg.rtsp, "rtsp://mediamtx:8554/camera1")
 
 
 class TestCameraManagerShutdown(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager shutdown logic."""
 
     def setUp(self):
         self.factory = MagicMock()
@@ -72,9 +92,9 @@ class TestCameraManagerShutdown(unittest.IsolatedAsyncioTestCase):
         self.manager = CameraManager(self.factory, self.repo, self.ai_client, self.settings)
 
     async def test_shutdown_stops_all_workers_and_closes_client(self):
-        w1 = _make_mock_worker("c1")
-        w2 = _make_mock_worker("c2")
-        self.manager._workers = {"c1": w1, "c2": w2}
+        w1 = _make_mock_worker(1)
+        w2 = _make_mock_worker(2)
+        self.manager._workers = {1: w1, 2: w2}
 
         await self.manager.shutdown()
 
@@ -84,165 +104,208 @@ class TestCameraManagerShutdown(unittest.IsolatedAsyncioTestCase):
 
 
 class TestCameraManagerAdd(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager camera addition."""
 
     def setUp(self):
         self.factory = MagicMock()
         self.repo = MagicMock()
         self.ai_client = AsyncMock()
-        self.settings = Settings(_env_file=None, CAMERAS_CONFIG_PATH="/dev/null")
+        self.settings = Settings(_env_file=None)
         self.manager = CameraManager(self.factory, self.repo, self.ai_client, self.settings)
 
     def test_add_camera_success_and_starts_when_enabled(self):
-        req = CameraAddRequest(id="new1", rtsp="rtsp://new1")
-        w = _make_mock_worker("new1")
+        req = CameraAddRequest(rtsp="rtsp://new1")
+        self.repo.add.return_value = 10
+        w = _make_mock_worker(10)
         self.factory.create_worker.return_value = w
 
         result = self.manager.add_camera(req)
 
-        self.assertEqual(result.id, "new1")
+        self.assertEqual(result.id, 10)
         w.start.assert_called_once()
-        self.repo.save_all.assert_called_once()
+        self.repo.add.assert_called_once()
 
-    def test_add_camera_with_duplicate_id_raises_value_error(self):
-        self.manager._workers["dup"] = _make_mock_worker("dup")
-        req = CameraAddRequest(id="dup", rtsp="rtsp://dup")
+    def test_add_camera_not_started_when_disabled(self):
+        req = CameraAddRequest(rtsp="rtsp://new2", enabled=False)
+        self.repo.add.return_value = 20
+        w = _make_mock_worker(20, enabled=False)
+        self.factory.create_worker.return_value = w
 
-        with self.assertRaises(ValueError) as ctx:
-            self.manager.add_camera(req)
-        self.assertIn("dup", str(ctx.exception))
+        result = self.manager.add_camera(req)
+
+        self.assertEqual(result.id, 20)
+        w.start.assert_not_called()
+        self.repo.add.assert_called_once()
+
+    def test_add_camera_rewrites_localhost_rtsp(self):
+        req = CameraAddRequest(rtsp="rtsp://127.0.0.1:8554/camera1")
+        self.repo.add.return_value = 30
+        w = _make_mock_worker(30)
+        self.factory.create_worker.return_value = w
+
+        self.manager.add_camera(req)
+
+        saved_cfg = self.repo.add.call_args.args[0]
+        self.assertEqual(saved_cfg.rtsp, "rtsp://mediamtx:8554/camera1")
 
 
 class TestCameraManagerUpdate(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager camera updates."""
 
     def setUp(self):
         self.factory = MagicMock()
         self.repo = MagicMock()
         self.ai_client = AsyncMock()
-        self.settings = Settings(_env_file=None, CAMERAS_CONFIG_PATH="/dev/null")
+        self.settings = Settings(_env_file=None)
         self.manager = CameraManager(self.factory, self.repo, self.ai_client, self.settings)
 
     def test_update_camera_fps_and_resize_width(self):
-        w = _make_mock_worker("c1")
-        self.manager._workers["c1"] = w
+        w = _make_mock_worker(1)
+        self.manager._workers[1] = w  # pylint: disable=protected-access
 
         req = CameraUpdateRequest(fps=5.0, resize_width=800)
-        self.manager.update_camera("c1", req)
+        self.manager.update_camera(1, req)
 
         w.update_params.assert_called_once_with(
             fps=5.0, resize_width=800, jpeg_quality=None, motion=None,
         )
-        self.repo.save_all.assert_called_once()
+        self.repo.update.assert_called_once()
 
     def test_update_camera_with_motion_config(self):
-        w = _make_mock_worker("c1")
-        self.manager._workers["c1"] = w
-        new_motion = MotionConfig(enabled=True, min_contour_area=9000)
+        w = _make_mock_worker(1)
+        self.manager._workers[1] = w  # pylint: disable=protected-access
+        # Initial area is 4000 (default)
+        new_motion = MotionUpdateRequest(min_contour_area=9000)
 
         req = CameraUpdateRequest(motion=new_motion)
-        self.manager.update_camera("c1", req)
+        self.manager.update_camera(1, req)
 
-        self.assertEqual(w.config.motion, new_motion)
+        self.assertEqual(w.config.motion.min_contour_area, 9000)
+        self.assertEqual(w.config.motion.enabled, True)  # Should remain True (default)
+
+    def test_update_camera_accepts_legacy_flat_motion_fields(self):
+        w = _make_mock_worker(1)
+        self.manager._workers[1] = w  # pylint: disable=protected-access
+
+        req = CameraUpdateRequest(
+            motion_min_contour_area=9000,
+            motion_threshold=33,
+        )
+        self.manager.update_camera(1, req)
+
+        self.assertEqual(w.config.motion.min_contour_area, 9000)
+        self.assertEqual(w.config.motion.diff_threshold, 33)
+        w.update_params.assert_called_once_with(
+            fps=None,
+            resize_width=None,
+            jpeg_quality=None,
+            motion=w.config.motion,
+        )
 
     def test_update_camera_unknown_raises_key_error(self):
         req = CameraUpdateRequest(fps=1.0)
         with self.assertRaises(KeyError):
-            self.manager.update_camera("missing", req)
+            self.manager.update_camera(999, req)
 
 
 class TestCameraManagerRemove(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager camera removal."""
 
     def setUp(self):
         self.factory = MagicMock()
         self.repo = MagicMock()
         self.ai_client = AsyncMock()
-        self.settings = Settings(_env_file=None, CAMERAS_CONFIG_PATH="/dev/null")
+        self.settings = Settings(_env_file=None)
         self.manager = CameraManager(self.factory, self.repo, self.ai_client, self.settings)
 
     async def test_remove_camera_success(self):
-        w = _make_mock_worker("c1")
-        self.manager._workers["c1"] = w
+        w = _make_mock_worker(1)
+        self.manager._workers[1] = w  # pylint: disable=protected-access
 
-        await self.manager.remove_camera("c1")
+        await self.manager.remove_camera(1)
 
         w.stop.assert_awaited_once()
-        self.assertNotIn("c1", self.manager._workers)
-        self.repo.save_all.assert_called_once()
+        self.assertNotIn(1, self.manager._workers)  # pylint: disable=protected-access
+        self.repo.delete.assert_called_once_with(1)
 
     async def test_remove_camera_unknown_raises_key_error(self):
         with self.assertRaises(KeyError):
-            await self.manager.remove_camera("ghost")
+            await self.manager.remove_camera(999)
 
 
 class TestCameraManagerStartStop(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager starting and stopping cameras."""
 
     def setUp(self):
         self.factory = MagicMock()
         self.repo = MagicMock()
         self.ai_client = AsyncMock()
-        self.settings = Settings(_env_file=None, CAMERAS_CONFIG_PATH="/dev/null")
+        self.settings = Settings(_env_file=None)
         self.manager = CameraManager(self.factory, self.repo, self.ai_client, self.settings)
 
     def test_start_camera_success(self):
-        w = _make_mock_worker("c1")
-        self.manager._workers["c1"] = w
+        w = _make_mock_worker(1)
+        self.manager._workers[1] = w  # pylint: disable=protected-access
 
-        result = self.manager.start_camera("c1")
+        result = self.manager.start_camera(1)
         w.start.assert_called_once()
         self.assertTrue(w.config.enabled)
 
     def test_start_camera_unknown_raises_key_error(self):
         with self.assertRaises(KeyError):
-            self.manager.start_camera("ghost")
+            self.manager.start_camera(999)
 
     async def test_stop_camera_success(self):
-        w = _make_mock_worker("c1")
-        self.manager._workers["c1"] = w
+        w = _make_mock_worker(1)
+        self.manager._workers[1] = w  # pylint: disable=protected-access
 
-        result = await self.manager.stop_camera("c1")
+        result = await self.manager.stop_camera(1)
         w.stop.assert_awaited_once()
         self.assertFalse(w.config.enabled)
 
     async def test_stop_camera_unknown_raises_key_error(self):
         with self.assertRaises(KeyError):
-            await self.manager.stop_camera("ghost")
+            await self.manager.stop_camera(999)
 
 
 class TestCameraManagerQueries(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager query methods."""
 
     def setUp(self):
         self.factory = MagicMock()
         self.repo = MagicMock()
         self.ai_client = AsyncMock()
-        self.settings = Settings(_env_file=None, CAMERAS_CONFIG_PATH="/dev/null")
+        self.settings = Settings(_env_file=None)
         self.manager = CameraManager(self.factory, self.repo, self.ai_client, self.settings)
 
     def test_get_all_returns_list_of_responses(self):
-        w1 = _make_mock_worker("c1")
-        w2 = _make_mock_worker("c2")
-        self.manager._workers = {"c1": w1, "c2": w2}
+        w1 = _make_mock_worker(1)
+        w2 = _make_mock_worker(2)
+        self.manager._workers = {1: w1, 2: w2}
 
         result = self.manager.get_all()
         self.assertEqual(len(result), 2)
 
     def test_get_one_returns_response(self):
-        w = _make_mock_worker("c1")
-        self.manager._workers["c1"] = w
+        w = _make_mock_worker(1)
+        self.manager._workers[1] = w  # pylint: disable=protected-access
 
-        result = self.manager.get_one("c1")
-        self.assertEqual(result.id, "c1")
+        result = self.manager.get_one(1)
+        self.assertEqual(result.id, 1)
 
     def test_get_one_unknown_raises_key_error(self):
         with self.assertRaises(KeyError):
-            self.manager.get_one("ghost")
+            self.manager.get_one(999)
 
 
 class TestCameraManagerGlobalConfig(unittest.IsolatedAsyncioTestCase):
+    """Test suite for CameraManager global configuration updates."""
 
     def setUp(self):
         self.factory = MagicMock()
         self.repo = MagicMock()
         self.ai_client = MagicMock()
-        self.settings = Settings(_env_file=None, CAMERAS_CONFIG_PATH="/dev/null")
+        self.settings = Settings(_env_file=None)
         self.manager = CameraManager(self.factory, self.repo, self.ai_client, self.settings)
 
     def test_update_global_config_changes_ai_url(self):

@@ -1,0 +1,21 @@
+[MASTER]
+ignore=tests
+init-hook='import sys; sys.path.append(".")'
+
+[MESSAGES CONTROL]
+disable=
+    import-error,
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    too-few-public-methods,
+    import-outside-toplevel
+
+[FORMAT]
+max-line-length=120
+
+[DESIGN]
+max-attributes=12
+max-args=8
+max-branches=15
+max-statements=60

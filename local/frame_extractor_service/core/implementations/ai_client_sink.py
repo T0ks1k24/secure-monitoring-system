@@ -15,14 +15,13 @@ class AIClientSink(IFrameSink):
         """Sends frame to AI client."""
         # Quality can be overridden dynamically, but we'll use the one from config for now
         actual_quality = quality if quality is not None else self.default_jpeg_quality
-        
+
         result = await self.ai_client.send_frame(
-            frame=frame, 
-            camera_id=source_id, 
+            frame=frame,
+            camera_id=source_id,
             jpeg_quality=actual_quality
         )
         return result is not None
-        
-    async def close(self) -> None:
-        """AIClient lifecycle is managed by CameraManager, so sink doesn't close it."""
-        pass
+
+    async def aclose(self):
+        """Cleanup AI client sink."""

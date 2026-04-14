@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import Dict, List, Optional
+from urllib.parse import urlparse, urlunparse
 
 from config import Settings
 from schemas import (
@@ -28,7 +29,7 @@ class CameraManager:
         ai_client: IAIClient,
         settings: Settings,
     ) -> None:
-        self._workers: Dict[str, CameraWorker] = {}
+        self._workers: Dict[int, CameraWorker] = {}
         self._factory = worker_factory
         self._repo = repository
         self._ai_client = ai_client
@@ -40,6 +41,11 @@ class CameraManager:
         """Load config and start enabled cameras."""
         cameras = self._repo.load_all()
         for cfg in cameras:
+            normalized_rtsp = self._normalize_rtsp_url(cfg.rtsp)
+            if normalized_rtsp != cfg.rtsp:
+                cfg.rtsp = normalized_rtsp
+                self._repo.update(cfg)
+
             worker = self._factory.create_worker(cfg)
             self._workers[cfg.id] = worker
             if cfg.enabled:
@@ -56,58 +62,79 @@ class CameraManager:
     # CRUD
 
     def add_camera(self, req: CameraAddRequest) -> CameraStatusResponse:
-        if req.id in self._workers:
-            raise ValueError(f"Camera '{req.id}' already exists")
-        cfg = CameraConfig(**req.model_dump())
+        # Create config without ID first
+        data = req.model_dump()
+        data["rtsp"] = self._normalize_rtsp_url(data["rtsp"])
+        cfg = CameraConfig(**data)
+
+        # Save to repo to get the generated ID
+        new_id = self._repo.add(cfg)
+        cfg.id = new_id
+
+        # Now create and register the worker
         worker = self._factory.create_worker(cfg)
-        self._workers[cfg.id] = worker
+        self._workers[new_id] = worker
+
         if cfg.enabled:
             worker.start()
-        self._repo.save_all([w.config for w in self._workers.values()])
-        logger.info("Camera added: %s", req.id)
+
+        logger.info("Camera added with ID: %s", new_id)
         return self._build_response(worker)
 
     def update_camera(
-        self, camera_id: str, req: CameraUpdateRequest
+        self, camera_id: int, req: CameraUpdateRequest
     ) -> CameraStatusResponse:
         worker = self._get_or_raise(camera_id)
         updates = req.model_dump(exclude_none=True)
+        if "rtsp" in updates:
+            updates["rtsp"] = self._normalize_rtsp_url(updates["rtsp"])
+
+        # Update top-level camera params
         for key, val in updates.items():
             if key != "motion":
                 setattr(worker.config, key, val)
+
+        # Partial update for motion config
         if req.motion is not None:
-            worker.config.motion = req.motion
+            motion_updates = req.motion.model_dump(exclude_none=True)
+            for m_key, m_val in motion_updates.items():
+                setattr(worker.config.motion, m_key, m_val)
+
         worker.update_params(
             fps=updates.get("fps"),
             resize_width=updates.get("resize_width"),
             jpeg_quality=updates.get("jpeg_quality"),
-            motion=req.motion,
+            motion=worker.config.motion if req.motion else None,
         )
-        self._repo.save_all([w.config for w in self._workers.values()])
+        self._repo.update(worker.config)
         logger.info("Camera updated: %s", camera_id)
         return self._build_response(worker)
 
-    async def remove_camera(self, camera_id: str) -> None:
+    async def remove_camera(self, camera_id: int) -> None:
         worker = self._get_or_raise(camera_id)
         await worker.stop()
         del self._workers[camera_id]
-        self._repo.save_all([w.config for w in self._workers.values()])
+        self._repo.delete(camera_id)
         logger.info("Camera removed: %s", camera_id)
 
     # Control
 
-    def start_camera(self, camera_id: str) -> CameraStatusResponse:
+    def start_camera(self, camera_id: int) -> CameraStatusResponse:
         worker = self._get_or_raise(camera_id)
+        normalized_rtsp = self._normalize_rtsp_url(worker.config.rtsp)
+        if normalized_rtsp != worker.config.rtsp:
+            worker.config.rtsp = normalized_rtsp
+            self._repo.update(worker.config)
         worker.start()
         worker.config.enabled = True
-        self._repo.save_all([w.config for w in self._workers.values()])
+        self._repo.update(worker.config)
         return self._build_response(worker)
 
-    async def stop_camera(self, camera_id: str) -> CameraStatusResponse:
+    async def stop_camera(self, camera_id: int) -> CameraStatusResponse:
         worker = self._get_or_raise(camera_id)
         await worker.stop()
         worker.config.enabled = False
-        self._repo.save_all([w.config for w in self._workers.values()])
+        self._repo.update(worker.config)
         return self._build_response(worker)
 
     # Queries
@@ -115,7 +142,7 @@ class CameraManager:
     def get_all(self) -> List[CameraStatusResponse]:
         return [self._build_response(w) for w in self._workers.values()]
 
-    def get_one(self, camera_id: str) -> CameraStatusResponse:
+    def get_one(self, camera_id: int) -> CameraStatusResponse:
         return self._build_response(self._get_or_raise(camera_id))
 
     # Global config
@@ -141,7 +168,7 @@ class CameraManager:
 
     # Internal
 
-    def _get_or_raise(self, camera_id: str) -> CameraWorker:
+    def _get_or_raise(self, camera_id: int) -> CameraWorker:
         worker = self._workers.get(camera_id)
         if worker is None:
             raise KeyError(f"Camera '{camera_id}' not found")
@@ -167,3 +194,36 @@ class CameraManager:
             enabled=cfg.enabled,
             motion=cfg.motion,
         )
+
+    def _normalize_rtsp_url(self, url: str) -> str:
+        """
+        Replace localhost/127.0.0.1 in RTSP URLs with configured media service host.
+        Prevents broken links when running inside Docker containers.
+        """
+        parsed = urlparse(url)
+        if parsed.scheme.lower() != "rtsp":
+            return url
+        if not parsed.hostname:
+            return url
+
+        if parsed.hostname not in {"127.0.0.1", "localhost"}:
+            return url
+
+        target_host = self._settings.RTSP_LOCALHOST_REWRITE_HOST
+        if not target_host:
+            return url
+
+        user_info = ""
+        if parsed.username:
+            user_info = parsed.username
+            if parsed.password:
+                user_info += f":{parsed.password}"
+            user_info += "@"
+
+        port_part = f":{parsed.port}" if parsed.port else ""
+        new_netloc = f"{user_info}{target_host}{port_part}"
+        normalized = parsed._replace(netloc=new_netloc)
+        result = urlunparse(normalized)
+
+        logger.warning("RTSP host rewritten from localhost to '%s': %s -> %s", target_host, url, result)
+        return result

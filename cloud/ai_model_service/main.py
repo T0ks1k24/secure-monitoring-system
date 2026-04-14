@@ -8,10 +8,12 @@ AI Service — FastAPI застосунок.
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from config.settings import settings
 from models.detector import detector
@@ -71,6 +73,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+Path(settings.FRAME_STORAGE_PATH).mkdir(parents=True, exist_ok=True)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -79,6 +83,7 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api/v1")
+app.mount("/evidence", StaticFiles(directory=settings.FRAME_STORAGE_PATH), name="evidence")
 
 
 if __name__ == "__main__":

@@ -24,11 +24,34 @@ body {
   color: #e5e7eb;
 }
 
+body.kiosk-mode {
+  #titlebar {
+    display: none;
+  }
+
+  .app-content {
+    height: 100vh;
+    padding: 0;
+  }
+
+  .sidebar-trigger,
+  .control-panel {
+    display: none;
+  }
+  .camera-grid {
+    padding: 0;
+    gap: 0;
+    align-content: stretch;
+  }
+  .camera-label {
+    display: none;
+  }
+}
+
 .app-content {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 35px); 
-  padding: 20px;
+  height: calc(100vh - 35px);
 }
 
 

@@ -1,6 +1,5 @@
 from infrastructure.database import SessionLocal
 from infrastructure.models.zone_model import ZoneModel
-from domain.entities.zone import Zone
 
 class ZoneRepositoryImpl:
 
@@ -14,7 +13,13 @@ class ZoneRepositoryImpl:
             zone_type=data.zone_type,
             risk_weight=data.risk_weight,
             is_active=data.is_active,
-            max_people_allowed=data.max_people_allowed
+            max_people_allowed=data.max_people_allowed,
+            time_windows=[window.model_dump() for window in data.time_windows],
+            base_mode=data.base_mode,
+            risk_multipliers=data.risk_multipliers.model_dump(),
+            people_thresholds=data.people_thresholds.model_dump(),
+            accumulation=data.accumulation.model_dump(),
+            cooldown_seconds=data.cooldown_seconds,
         )
 
         db.add(zone)
@@ -28,7 +33,7 @@ class ZoneRepositoryImpl:
         db = SessionLocal()
         zones = db.query(ZoneModel).filter(
             ZoneModel.camera_id == camera_id,
-            ZoneModel.is_active == 1
+            ZoneModel.is_active == True
         ).all()
         db.close()
         return zones
@@ -41,10 +46,10 @@ class ZoneRepositoryImpl:
             db.close()
             return None
 
-        zone.name = data.name
-        zone.polygon = data.polygon
-        zone.zone_type = data.zone_type
-        zone.risk_weight = data.risk_weight
+        updates = data.model_dump(exclude_none=True)
+        for field, value in updates.items():
+            if hasattr(zone, field):
+                setattr(zone, field, value)
 
         db.commit()
         db.refresh(zone)
@@ -58,10 +63,12 @@ class ZoneRepositoryImpl:
 
         if not zone:
             db.close()
-            return False
+            return None
+
+        camera_id = zone.camera_id
 
         db.delete(zone)
         db.commit()
         db.close()
 
-        return True
+        return camera_id

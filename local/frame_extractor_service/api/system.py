@@ -5,13 +5,13 @@ from schemas import GlobalConfigUpdate, ServiceStatusResponse
 from core.camera_manager import CameraManager
 from api.deps import get_camera_manager
 
-router = APIRouter(tags=["⚙️ Система"])
+router = APIRouter(tags=["System"])
 
 
 @router.get(
     "/health",
     summary="Health check",
-    description="Перевірка що сервіс живий. Для Docker healthcheck і моніторингу.",
+    description="Check if the service is alive. Used for Docker healthcheck and monitoring.",
 )
 async def health() -> dict:
     return {"status": "ok"}
@@ -20,12 +20,13 @@ async def health() -> dict:
 @router.get(
     "/status",
     response_model=ServiceStatusResponse,
-    summary="Статус сервісу",
+    summary="Service status",
     description=(
-        "Загальна інформація:\n"
-        "- кількість камер і скільки активних\n"
-        "- поточні глобальні налаштування\n"
-        "- URL AI сервісу"
+        "Returns general information about the service:\n"
+        "- `active_cameras`: count of running cameras.\n"
+        "- `total_cameras`: total number of added cameras.\n"
+        "- `ai_service_url`: where frames are sent for analysis.\n"
+        "- `fps`, `resize_width`, `jpeg_quality`: current global defaults."
     ),
 )
 async def get_status(
@@ -37,31 +38,57 @@ async def get_status(
         running=True,
         total_cameras=len(cameras),
         active_cameras=active,
+        active_workers=active,
         ai_service_url=settings.AI_SERVICE_URL,
-        global_fps=settings.DEFAULT_FPS,
-        global_resize_width=settings.DEFAULT_RESIZE_WIDTH,
-        global_jpeg_quality=settings.DEFAULT_JPEG_QUALITY,
+        fps=settings.DEFAULT_FPS,
+        resize_width=settings.DEFAULT_RESIZE_WIDTH,
+        jpeg_quality=settings.DEFAULT_JPEG_QUALITY,
     )
+
+
+@router.get(
+    "/config",
+    summary="Get current global settings",
+)
+async def get_config(
+    manager: CameraManager = Depends(get_camera_manager),
+) -> dict:
+    current_settings = getattr(manager, "_settings", settings)
+    return {
+        "default_fps": current_settings.DEFAULT_FPS,
+        "default_resize_width": current_settings.DEFAULT_RESIZE_WIDTH,
+        "default_jpeg_quality": current_settings.DEFAULT_JPEG_QUALITY,
+        "ai_service_url": current_settings.AI_SERVICE_URL,
+        "default_reconnect_delay": current_settings.DEFAULT_RECONNECT_DELAY,
+    }
 
 
 @router.patch(
     "/config",
-    summary="Оновити глобальні налаштування",
+    summary="Update global settings",
     description=(
-        "Змінює глобальні налаштування.\n\n"
-        "Впливають на **нові** камери (як дефолт).\n"
-        "Виняток: `ai_service_url` застосовується до **всіх** воркерів одразу."
+        "Allows changing service parameters on the fly.\n\n"
+        "- **ai_service_url**: service will immediately start sending frames to the new address.\n"
+        "- **default_fps**, **default_resize_width**, **default_jpeg_quality**: "
+        "global defaults for new cameras.\n"
+        "- **default_reconnect_delay**: reconnect delay for camera workers."
     ),
 )
 async def update_config(
     body: GlobalConfigUpdate,
     manager: CameraManager = Depends(get_camera_manager),
 ) -> dict:
-    manager.update_global_config(
-        ai_service_url=body.ai_service_url,
-        default_fps=body.default_fps,
-        default_resize_width=body.default_resize_width,
-        default_jpeg_quality=body.default_jpeg_quality,
-        default_reconnect_delay=body.default_reconnect_delay,
-    )
+    updates = {}
+    if body.ai_service_url is not None:
+        updates["ai_service_url"] = body.ai_service_url
+    if body.default_fps is not None:
+        updates["default_fps"] = body.default_fps
+    if body.default_resize_width is not None:
+        updates["default_resize_width"] = body.default_resize_width
+    if body.default_jpeg_quality is not None:
+        updates["default_jpeg_quality"] = body.default_jpeg_quality
+    if body.default_reconnect_delay is not None:
+        updates["default_reconnect_delay"] = body.default_reconnect_delay
+
+    manager.update_global_config(**updates)
     return {"status": "updated"}

@@ -1,11 +1,10 @@
 """
-conftest.py — налаштування pytest.
+conftest.py — pytest configuration.
 
-Додає корінь проєкту до sys.path щоб `frame_extractor_service` був імпортований.
+Adds project root to sys.path so that `frame_extractor_service` can be imported.
 """
 import sys
 import os
 
-# /home/.../frame_extractor_service/tests/conftest.py
-# додаємо батьківську папку (де знаходиться сам пакет frame_extractor_service)
+# add parent folder (where frame_extractor_service package is located)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

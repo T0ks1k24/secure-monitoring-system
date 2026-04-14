@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 import socket
 
 from infrastructure.database import Base, engine
+from infrastructure.db_compat import ensure_events_schema_compat, ensure_zones_schema_compat
 
 # Import models
 from infrastructure.models.user_model import UserModel
@@ -13,11 +14,9 @@ from infrastructure.models.event_model import EventModel
 
 # Controllers
 from presentation.api.auth_controller import router as auth_router
-from presentation.api.ai_controller import router as ai_router
 from presentation.api.event_controller import router as event_router
 from presentation.api.zone_controller import router as zone_router
 from presentation.api.server_controller import router as server_router
-from presentation.api.stream_controller import router as stream_router
 
 # WebSocket
 from core.websocket import ws_manager
@@ -25,9 +24,8 @@ from core.websocket import ws_manager
 # Startup services
 from core.server_info import get_server_addresses
 from core.startup import create_default_admin
-
-from streaming.ai_worker import ai_worker
-import asyncio
+from infrastructure.messaging.rabbitmq_client import rabbitmq_client
+from infrastructure.messaging.event_consumer import event_consumer
 
 # GLOBAL READY FLAG
 app_ready = False
@@ -42,12 +40,14 @@ async def lifespan(app: FastAPI):
     print("\nStarting Server...")
 
     Base.metadata.create_all(bind=engine)
+    ensure_events_schema_compat()
+    ensure_zones_schema_compat()
     print("Tables created!")
 
     create_default_admin()
     print("Default admin checked!")
-
-    asyncio.create_task(ai_worker())
+    await rabbitmq_client.connect()
+    await event_consumer.start()
 
     try:
         ips = get_server_addresses()
@@ -71,6 +71,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    await event_consumer.stop()
+    await rabbitmq_client.close()
     print("\nServer Shutdown")
 
 
@@ -90,12 +92,10 @@ app.add_middleware(
 )
 
 # INCLUDE ROUTERS
-app.include_router(ai_router)
 app.include_router(event_router)
 app.include_router(zone_router)
 app.include_router(server_router)
 app.include_router(auth_router)
-app.include_router(stream_router)
 
 
 @app.get("/")

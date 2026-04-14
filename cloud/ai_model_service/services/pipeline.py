@@ -14,10 +14,13 @@ from models.detector import detector
 from services.tracker import tracker_registry, Track
 from services.zone_manager import zone_manager
 from services.risk_engine import risk_engine
+from services.smart_zone_analytics import smart_zone_analytics
 from services.rabbitmq_service import rabbitmq_service
 from schemas.events import (
     DetectRequest, DetectResponse, TrackedObject, SecurityEvent, Zone
 )
+from services.visual_renderer import visual_renderer
+from services.frame_storage import frame_storage
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -76,11 +79,54 @@ class AnalyzePipeline:
             frame_timestamp=frame_ts,
             fps=request.stream_fps,
         )
+        security_events.extend(
+            smart_zone_analytics.analyze(
+                camera_id=camera_id,
+                zones=zones,
+                tracks=confirmed_tracks,
+                zone_memberships=zone_memberships,
+                frame_timestamp=frame_ts,
+                fps=request.stream_fps,
+            )
+        )
 
         # ── Step 5: Publish to RabbitMQ ───────────────────────────
         published = 0
+        zone_events = [
+            evt
+            for evt in security_events
+            if isinstance(evt, SecurityEvent) and evt.zone_id
+        ]
+
+        # Save one evidence frame for zone-triggered events and attach URL.
+        if zone_events:
+            rendered_for_evidence = visual_renderer.draw_overlays(
+                frame, camera_id, zones, confirmed_tracks, security_events
+            )
+            saved_path = frame_storage.save_frame(rendered_for_evidence, camera_id, frame_ts)
+            evidence_url = frame_storage.build_public_url(saved_path) if saved_path else None
+            if evidence_url:
+                for evt in zone_events:
+                    evt.metadata["evidence_url"] = evidence_url
+                    evt.metadata["evidence_saved"] = True
+
+        # 5. Публікуємо івенти
         if security_events:
             published = await rabbitmq_service.publish_events(security_events)
+
+        # 6. Debug візуалізація (якщо включена)
+        from services.debug_visualizer import debug_visualizer
+        debug_visualizer.show(frame, camera_id, zones, confirmed_tracks, security_events)
+
+        # 7. Збереження кадру (якщо включено)
+        if settings.SAVE_PROCESSED_FRAMES:
+            rendered_frame = visual_renderer.draw_overlays(
+                frame, camera_id, zones, confirmed_tracks, security_events
+            )
+            frame_storage.save_frame(rendered_frame, camera_id, frame_ts)
+
+        # 6. Формуємо відповідь
+        if security_events:
             for evt in security_events:
                 logger.info(
                     f"[{camera_id}] 🚨 {evt.event_type} | "

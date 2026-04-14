@@ -1,0 +1,115 @@
+.settings-page {
+  display: flex;
+  height: 100%;
+  background: #020617;
+}
+
+.settings-sidebar {
+  width: 200px;
+  min-width: 200px;
+  background: #0f172a;
+  border-right: 1px solid #1e293b;
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .tab-btn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    padding: 12px 20px;
+    text-align: left;
+    font-size: 14px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.2s;
+
+    &:hover { background: #1e293b; color: white; }
+    &.active {
+      background: #1e293b;
+      color: white;
+      border-left-color: #2563eb;
+    }
+  }
+}
+
+.settings-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 30px;
+}
+
+.tab-content {
+  h2 { color: white; margin-bottom: 24px; font-size: 20px; }
+}
+
+.setting-row {
+  margin-bottom: 24px;
+
+  label {
+    display: block;
+    color: #94a3b8;
+    font-size: 13px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  input {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: white;
+    padding: 10px 14px;
+    border-radius: 6px;
+    width: 100%;
+    max-width: 400px;
+    font-size: 14px;
+
+    &:focus { outline: none; border-color: #2563eb; }
+  }
+}
+
+.slot-options {
+  display: flex;
+  gap: 10px;
+
+  .slot-btn {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s;
+
+    &:hover { border-color: #475569; color: white; }
+    &.active {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: white;
+    }
+  }
+}
+
+.save-btn {
+  background: #2563eb;
+  border: none;
+  color: white;
+  padding: 10px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+  margin-top: 8px;
+
+  &:hover { background: #1d4ed8; }
+}
+
+.hint {
+  color: #64748b;
+  font-size: 12px;
+  margin-top: 12px;
+}

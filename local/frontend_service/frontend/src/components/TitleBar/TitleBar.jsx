@@ -1,19 +1,46 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import "./TitleBar.scss"
 
 export default function TitleBar() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isMonitoring = location.pathname.startsWith("/monitoring") || location.pathname === "/";
+  const isSettings = location.pathname.startsWith("/settings");
+
+  const openNewWindow = () => {
+    window.open(window.location.origin, "_blank", "width=1200,height=800");
+  };
+
+  const HomeIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="white" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 1L1 7h2v7h4v-4h2v4h4V7h2L8 1z" />
+    </svg>
+  );
 
   return (
     <div id="titlebar">
       <div className="nav-buttons">
         <button onClick={() => navigate(-1)}>🡐</button>
         <button onClick={() => navigate(1)}>🡒</button>
+        <button onClick={() => navigate("/")} title="Головна"><HomeIcon/></button>
+        <button className="popout-main-btn" onClick={openNewWindow} title="Відкрити нове робоче вікно">
+          ❐
+        </button>
       </div>
 
       <div className="title">Security System</div>
 
       <div className="window-buttons">
+        {!isSettings && (
+          <button onClick={() => navigate("/settings")} title="Налаштування">⚙️</button>
+        )}
+        {isMonitoring && (
+          <button onClick={() => {
+            window.windowAPI.toggleKiosk();
+            window.dispatchEvent(new CustomEvent("kiosk-toggle"));
+          }} title="Режим моніторингу">⛶</button>
+        )}
         <button onClick={() => window.windowAPI.minimize()}>—</button>
         <button onClick={() => window.windowAPI.maximize()}>☐</button>
         <button onClick={() => window.windowAPI.close()}>✕</button>

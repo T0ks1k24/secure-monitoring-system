@@ -1,34 +1,154 @@
 .cameras-page {
-    padding: 20px;
+  height: 100%;
+  overflow: hidden;
+  padding: 4px;
+  box-sizing: border-box;
 }
 
 .grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
+  display: grid;
+  height: 100%;
+  gap: 4px;
+  box-sizing: border-box;
 }
 
 .camera-card {
-    position: relative;
-    cursor: pointer;
-    border-radius: 8px;
-    overflow: hidden;
-    background: black;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  background: #0f172a;
+  min-height: 0;
+  transition: outline 0.2s;
+
+  &.empty {
+    cursor: default;
+    border: 1px dashed #1e293b;
+  }
+
+  &.has-alert {
+    outline: 2px solid var(--alert-color);
+    animation: alert-pulse 1.5s ease-in-out infinite;
+  }
 }
 
-.camera-card img {
-    width: 100%;
-    height: 200px;
-    object-fit: cover;
+@keyframes alert-pulse {
+  0%, 100% { outline-color: var(--alert-color); outline-width: 2px; }
+  50%       { outline-color: var(--alert-color); outline-width: 4px; }
+}
+
+.video-container {
+  width: 100%;
+  height: 100%;
+}
+
+.stream-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #334155;
+  background: #0f172a;
+  font-size: 13px;
+}
+
+// Alert badge у верхньому куті камери
+.alert-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  z-index: 10;
+  max-width: calc(100% - 16px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+
+  .alert-badge-risk {
+    font-size: 10px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  .alert-badge-type {
+    font-size: 10px;
+    color: rgba(255,255,255,0.85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: capitalize;
+  }
+
+  .alert-badge-zone {
+    font-size: 10px;
+    color: rgba(255,255,255,0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-left: 1px solid rgba(255,255,255,0.3);
+    padding-left: 6px;
+  }
+
+  .alert-dismiss {
+    background: rgba(0,0,0,0.25);
+    border: none;
+    color: white;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: 2px;
+    &:hover { background: rgba(0,0,0,0.5); }
+  }
 }
 
 .camera-label {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(0,0,0,0.6);
-    color: white;
-    padding: 6px;
-    font-size: 14px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 6px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
+
+.label-alert-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-left: auto;
+  animation: dot-blink 1s ease-in-out infinite;
+}
+
+@keyframes dot-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #64748b;
+
+  &.running    { background: #22c55e; }
+  &.connecting { background: #f59e0b; }
+  &.stopped    { background: #ef4444; }
+}
+
+.loading { color: #94a3b8; padding: 20px; }

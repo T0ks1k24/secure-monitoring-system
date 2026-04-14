@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from domain.entities.event import SecurityEvent
-import uuid
 from typing import List
 
 
@@ -11,7 +10,7 @@ class EventRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_id(self, event_id: uuid.UUID) -> SecurityEvent | None:
+    def get_by_id(self, event_id: str) -> SecurityEvent | None:
         pass
 
     @abstractmethod

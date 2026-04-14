@@ -20,7 +20,6 @@ from services.tracker import tracker_registry
 from services.rabbitmq_service import rabbitmq_service
 from schemas.events import (
     DetectRequest, DetectResponse, ServiceStatus,
-    Zone, ZoneUpdateMessage,
 )
 
 logger = logging.getLogger(__name__)
@@ -92,36 +91,6 @@ async def detect(
     )
 
     return await pipeline.process(frame, req)
-
-
-# ── Zone management ───────────────────────────────────────────────────────────
-
-@router.post(
-    "/zones/invalidate/{camera_id}",
-    summary="Інвалідувати кеш зон для камери",
-    description="Викликати після зміни зон у БД. Наступний детект перезавантажить зони.",
-)
-async def invalidate_zones(camera_id: str) -> dict:
-    zone_manager.invalidate(camera_id)
-    return {"status": "invalidated", "camera_id": camera_id}
-
-
-@router.post(
-    "/zones/invalidate-all",
-    summary="Очистити весь кеш зон",
-)
-async def invalidate_all_zones() -> dict:
-    zone_manager.invalidate_all()
-    return {"status": "all_invalidated"}
-
-
-@router.get(
-    "/zones/{camera_id}",
-    response_model=list[Zone],
-    summary="Переглянути поточні зони камери",
-)
-async def get_zones(camera_id: str) -> list[Zone]:
-    return await zone_manager.get_zones(camera_id)
 
 
 # ── Settings (hot-reload без рестарту) ────────────────────────────────────────

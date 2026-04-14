@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from application.services.auth_service import AuthService
 from infrastructure.repositories.user_repo_impl import UserRepositoryImpl
 from domain.enums.role_enum import UserRole
@@ -13,24 +13,24 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., description="Логін користувача для входу.")
+    password: str = Field(..., description="Пароль користувача.")
 
 
 class CreateUserRequest(BaseModel):
-    username: str
-    password: str
-    role: UserRole
+    username: str = Field(..., description="Логін нового користувача.")
+    password: str = Field(..., description="Початковий пароль нового користувача.")
+    role: UserRole = Field(..., description="Роль користувача (admin/operator).")
 
 
 class ResetPasswordRequest(BaseModel):
-    user_id: str
-    new_password: str
+    user_id: str = Field(..., description="ID користувача, якому потрібно скинути пароль.")
+    new_password: str = Field(..., description="Новий пароль користувача.")
 
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(..., description="Refresh JWT токен для отримання нового access token.")
 
 
 def get_auth_service():
