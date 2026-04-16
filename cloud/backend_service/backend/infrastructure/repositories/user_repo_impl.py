@@ -26,6 +26,22 @@ class UserRepositoryImpl(UserRepository):
 
         return user
 
+    def get_all(self) -> list[User]:
+        db = SessionLocal()
+        models = db.query(UserModel).all()
+        db.close()
+
+        return [
+            User(
+                id=model.id,
+                username=model.username,
+                password_hash=model.password_hash,
+                role=UserRole(model.role),
+                created_at=model.created_at
+            )
+            for model in models
+        ]
+
     def get_by_id(self, user_id: uuid.UUID) -> User | None:
 
         db = SessionLocal()

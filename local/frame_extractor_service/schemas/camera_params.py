@@ -1,8 +1,11 @@
 from typing import Optional
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, Field, model_validator
+
+from .compat import fold_legacy_motion_fields
 
 class CameraParams(BaseModel):
-    """Common parameters for cameras and global configuration."""
+    """Top-level camera parameters shared by camera request/response models."""
     fps: Optional[float] = Field(
         default=None,
         ge=0.1,
@@ -15,13 +18,8 @@ class CameraParams(BaseModel):
         description="Frame width (px). Recommended: 1280 for quality/speed balance"
     )
     jpeg_quality: Optional[int] = Field(None, ge=1, le=100)
-    reconnect_delay: Optional[int] = Field(None, ge=1)
 
-    # Motion detection parameters
-    motion_min_contour_area: Optional[int] = Field(None, ge=0)
-    motion_threshold: Optional[int] = Field(None, ge=0, le=255)
-
-    # Post-processing parameters
-    motion_blur_size: Optional[int] = Field(None, ge=1)
-    motion_frames_to_average: Optional[int] = Field(None, ge=1)
-    motion_min_duration: Optional[float] = Field(None, ge=0.0)
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_motion_fields(cls, data):
+        return fold_legacy_motion_fields(data)

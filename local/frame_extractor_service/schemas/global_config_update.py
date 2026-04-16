@@ -1,7 +1,8 @@
-from pydantic import Field
-from .camera_params import CameraParams
+from pydantic import BaseModel, Field, model_validator
 
-class GlobalConfigUpdate(CameraParams):
+from .compat import fold_legacy_global_fields
+
+class GlobalConfigUpdate(BaseModel):
     """
     Global settings. Applied as default for new cameras.
 
@@ -17,6 +18,11 @@ class GlobalConfigUpdate(CameraParams):
     )
     default_reconnect_delay: int | None = Field(default=None, ge=1)
 
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_default_fields(cls, data):
+        return fold_legacy_global_fields(data)
+
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -26,7 +32,11 @@ class GlobalConfigUpdate(CameraParams):
                 },
                 {
                     "summary": "Reduce load", 
-                    "value": {"fps": 1.0, "resize_width": 640, "jpeg_quality": 75}
+                    "value": {
+                        "default_fps": 1.0,
+                        "default_resize_width": 640,
+                        "default_jpeg_quality": 75,
+                    }
                 },
             ]
         }

@@ -69,7 +69,9 @@ async def get_config(
     description=(
         "Allows changing service parameters on the fly.\n\n"
         "- **ai_service_url**: service will immediately start sending frames to the new address.\n"
-        "- **fps**, **resize_width**, **jpeg_quality**: global defaults for new cameras."
+        "- **default_fps**, **default_resize_width**, **default_jpeg_quality**: "
+        "global defaults for new cameras.\n"
+        "- **default_reconnect_delay**: reconnect delay for camera workers."
     ),
 )
 async def update_config(

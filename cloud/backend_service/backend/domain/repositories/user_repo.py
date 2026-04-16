@@ -20,3 +20,7 @@ class UserRepository(ABC):
     @abstractmethod
     def delete(self, user_id: uuid.UUID) -> None:
         pass
+
+    @abstractmethod
+    def get_all(self):
+        pass
