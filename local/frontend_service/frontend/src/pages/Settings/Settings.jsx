@@ -2,12 +2,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CameraSettings from "./CameraSettings/CameraSettings";
 import DisplaySettings from "./DisplaySettings/DisplaySettings";
+import AccessControl from "./AccessControl";
 import "./Settings.scss";
 
 const TABS = [
   { id: "cameras", label: "📷 Камери" },
   { id: "display", label: "🖥️ Відображення" },
   { id: "connection", label: "🔗 Підключення" },
+  { id: "access", label: "🔐 Access Control" },
 ];
 
 export default function Settings() {
@@ -32,6 +34,7 @@ export default function Settings() {
         {activeTab === "cameras" && <CameraSettings />}
         {activeTab === "display" && <DisplaySettings />}
         {activeTab === "connection" && <ConnectionSettings />}
+        {activeTab === "access" && <AccessControl />}
       </div>
     </div>
   );
