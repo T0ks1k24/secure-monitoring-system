@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from application.services.auth_service import AuthService
@@ -27,6 +28,15 @@ class ResetPasswordRequest(BaseModel):
     user_id: str = Field(..., description="ID користувача, якому потрібно скинути пароль.")
     new_password: str = Field(..., description="Новий пароль користувача.")
 
+
+class UserResponse(BaseModel):
+    id: uuid.UUID
+    username: str
+    role: UserRole
+    created_at: str
+
+    class Config:
+        from_attributes = True
 
 
 class RefreshRequest(BaseModel):
@@ -60,6 +70,42 @@ def login(
 
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+
+# GET ALL USERS (ADMIN)
+@router.get("/users", response_model=list[UserResponse])
+def get_all_users(
+    admin=Depends(admin_required),
+    service: AuthService = Depends(get_auth_service)
+):
+    users = service.get_all_users()
+    return [
+        UserResponse(
+            id=u.id,
+            username=u.username,
+            role=u.role,
+            created_at=u.created_at.isoformat()
+        ) for u in users
+    ]
+
+
+# GET USER BY ID (ADMIN)
+@router.get("/users/{user_id}", response_model=UserResponse)
+def get_user_by_id(
+    user_id: uuid.UUID,
+    admin=Depends(admin_required),
+    service: AuthService = Depends(get_auth_service)
+):
+    try:
+        user = service.get_user_by_id(user_id)
+        return UserResponse(
+            id=user.id,
+            username=user.username,
+            role=user.role,
+            created_at=user.created_at.isoformat()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 # CREATE USER (ADMIN)
