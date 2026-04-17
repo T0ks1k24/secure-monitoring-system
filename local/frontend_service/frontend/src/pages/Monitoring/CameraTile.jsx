@@ -148,7 +148,6 @@ export default function CameraTile({
                     style={{ pointerEvents: mode === "draw" ? "auto" : "none" }}
                 />
             </div>
-            <div className="camera-label">{camera.name || `Камера ${camera.id}`}</div>
         </div>
     );
 }
