@@ -30,8 +30,9 @@ export default function TitleBar() {
   };
 
   const handleLogout = () => {
-        dispatch(logOut());
-        navigate("/login");
+    localStorage.setItem("auth-event", JSON.stringify({ type: "logout", ts: Date.now() }));
+    dispatch(logOut());
+    navigate("/login");
   };
 
   return (

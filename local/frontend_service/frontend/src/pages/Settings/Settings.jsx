@@ -1,20 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useRole } from "../../hooks/useRole";
 import CameraSettings from "./CameraSettings/CameraSettings";
 import DisplaySettings from "./DisplaySettings/DisplaySettings";
 import AccessControl from "./AccessControl";
 import "./Settings.scss";
 
-const TABS = [
-  { id: "cameras", label: "📷 Камери" },
-  { id: "display", label: "🖥️ Відображення" },
-  { id: "connection", label: "🔗 Підключення" },
-  { id: "access", label: "🔐 Access Control" },
-];
-
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("cameras");
   const navigate = useNavigate();
+  const { isAdmin } = useRole();
+
+  const TABS = [
+    { id: "cameras", label: "📷 Камери", show: true },
+    { id: "display", label: "🖥️ Відображення", show: true},
+    { id: "connection", label: "🔗 Підключення", show: isAdmin },
+    { id: "access", label: "🔐 Access Control", show: isAdmin },
+  ].filter(t => t.show);
+
+  useEffect(() => {
+    if (!TABS.find(t => t.id === activeTab)) {
+      setActiveTab("cameras");
+    }
+  }, [isAdmin]);
 
   return (
     <div className="settings-page">

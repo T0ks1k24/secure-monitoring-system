@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
-import { useLoginMutation } from "../../services/auth/authApi";
+import { useLoginMutation, useGetUserByIdQuery } from "../../services/auth/authApi";
 import { setCredentials } from "../../services/auth/authSlice";
 import "./Login.scss";
+import { jwtDecode } from "jwt-decode";
 
 export default function Login() {
     const dispatch = useDispatch();
@@ -22,10 +23,22 @@ export default function Login() {
         setError("");
         try {
             const data = await login(form).unwrap();
+            const decoded = jwtDecode(data.access_token);
+
+            const user = {
+                id: decoded.sub,
+                role: decoded.role,
+                username: form.username,
+            };
+
             dispatch(setCredentials({
                 access_token: data.access_token,
                 refresh_token: data.refresh_token,
+                user,
             }));
+            
+            localStorage.setItem("auth-event", JSON.stringify({ type: "login", ts: Date.now() }));
+
         } catch {
             setError("Invalid credentials. Please try again.");
         } finally {
@@ -99,11 +112,7 @@ export default function Login() {
                     )}
 
                     <button type="submit" className="login-btn" disabled={loading}>
-                        {loading ? (
-                            <span className="login-spinner" />
-                        ) : (
-                            "Sign in"
-                        )}
+                        {loading ? <span className="login-spinner" /> : "Sign in"}
                     </button>
                 </form>
 

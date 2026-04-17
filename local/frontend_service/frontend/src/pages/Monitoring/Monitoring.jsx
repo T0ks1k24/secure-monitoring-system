@@ -11,6 +11,7 @@ import {
 import { useGetCamerasQuery } from "../../services/camerasApi";
 import { useEventStream } from "../../hooks/useEventStream";
 import { useKioskMode } from "../../hooks/useKioskMode";
+import { useRole } from "../../hooks/useRole";
 
 const MEDIA_MTX_WEBRTC_URL = (import.meta.env.VITE_MEDIA_MTX_WEBRTC_URL || "http://localhost:8889").replace(/\/+$/, "");
 
@@ -87,6 +88,8 @@ export default function Monitoring() {
     const { data: cameras = [] } = useGetCamerasQuery();
     const { events, status: eventsStatus } = useEventStream();
     const { isKiosk, showExitBtn, setShowExitBtn, exitKiosk } = useKioskMode();
+
+    const { isAdmin } = useRole();
 
     const camera = useMemo(() => {
         const found = cameras.find(c => String(c.id) === String(cameraId));
@@ -242,14 +245,16 @@ export default function Monitoring() {
                 </div>
 
                 <button className="zone-btn" onClick={() => { setIsZoneMenuOpen(!isZoneMenuOpen); resetDrawState(); }}>
-                    {isZoneMenuOpen ? "Сховати зони" : "Управління зонами"}
+                    {isZoneMenuOpen ? "Сховати зони" : isAdmin ? "Управління зонами" : "Переглянути зони"}
                 </button>
 
                 {isZoneMenuOpen && (
                     <div className="zones-manager">
                         {mode === "view" ? (
                             <>
-                                <button className="zone-btn" onClick={() => setMode("draw")}>+ Додати нову зону</button>
+                                {isAdmin && (
+                                    <button className="zone-btn" onClick={() => setMode("draw")}>+ Додати нову зону</button>
+                                )}
                                 {activeZones.length > 0 && (
                                     <div className="zones-list">
                                         <h3>Існуючі зони:</h3>
@@ -268,27 +273,29 @@ export default function Monitoring() {
                                                             </div>
                                                         </div>
                                                         <div className="zone-item-actions" onClick={e => e.stopPropagation()}>
-                                                            <button className="edit-mini" onClick={() => {
-                                                                setMode("edit");
-                                                                setEditingZoneId(zone.id);
-                                                                setExpandedZoneId(null);
-                                                                setZoneForm({
-                                                                    name: zone.name,
-                                                                    zone_type: zone.zone_type,
-                                                                    risk_weight: String(zone.risk_weight),
-                                                                    max_people_allowed: String(zone.max_people_allowed),
-                                                                    base_mode: zone.base_mode || "STRICT",
-                                                                    cooldown_seconds: String(zone.cooldown_seconds || ""),
-                                                                    risk_multipliers_relaxed: String(zone.risk_multipliers?.relaxed || ""),
-                                                                    risk_multipliers_strict: String(zone.risk_multipliers?.strict || ""),
-                                                                    people_thresholds_medium: String(zone.people_thresholds?.medium || ""),
-                                                                    people_thresholds_high: String(zone.people_thresholds?.high || ""),
-                                                                    decay_per_second: String(zone.accumulation?.decay_per_second || ""),
-                                                                    time_windows: zone.time_windows || [],
-                                                                    _showAdvanced: false,
-                                                                });
-                                                            }}>✎</button>
-                                                            <button className="delete-mini" onClick={() => setSelectedZoneId(zone.id)}>🗑</button>
+                                                            {isAdmin && <>
+                                                                <button className="edit-mini" onClick={() => {
+                                                                    setMode("edit");
+                                                                    setEditingZoneId(zone.id);
+                                                                    setExpandedZoneId(null);
+                                                                    setZoneForm({
+                                                                        name: zone.name,
+                                                                        zone_type: zone.zone_type,
+                                                                        risk_weight: String(zone.risk_weight),
+                                                                        max_people_allowed: String(zone.max_people_allowed),
+                                                                        base_mode: zone.base_mode || "STRICT",
+                                                                        cooldown_seconds: String(zone.cooldown_seconds || ""),
+                                                                        risk_multipliers_relaxed: String(zone.risk_multipliers?.relaxed || ""),
+                                                                        risk_multipliers_strict: String(zone.risk_multipliers?.strict || ""),
+                                                                        people_thresholds_medium: String(zone.people_thresholds?.medium || ""),
+                                                                        people_thresholds_high: String(zone.people_thresholds?.high || ""),
+                                                                        decay_per_second: String(zone.accumulation?.decay_per_second || ""),
+                                                                        time_windows: zone.time_windows || [],
+                                                                        _showAdvanced: false,
+                                                                    });
+                                                                }}>✎</button>
+                                                                <button className="delete-mini" onClick={() => setSelectedZoneId(zone.id)}>🗑</button>
+                                                            </>}
                                                             <span className="zone-expand-arrow">{expandedZoneId === zone.id ? "▴" : "▾"}</span>
                                                         </div>
                                                     </div>

@@ -7,6 +7,7 @@ import {
   useStopCameraMutation,
   useDeleteCameraMutation
 } from "../../../services/camerasApi";
+import { useRole } from "../../../hooks/useRole";
 import "./CameraSettings.scss";
 import AddCameraModal from "./AddCameraModal/AddCameraModal";
 
@@ -24,6 +25,8 @@ export default function CameraSettings() {
 
   const openModalForCreate = () => { setCameraToEdit(null); setIsModalOpen(true); };
   const openModalForEdit = (cam) => { setCameraToEdit(cam); setIsModalOpen(true); };
+
+  const { isAdmin } = useRole();
 
   const handleSaveCamera = async (data) => {
     try {
@@ -44,7 +47,9 @@ export default function CameraSettings() {
     <div className="settings-container">
       <div className="cam-header">
         <h2>Camera Management</h2>
-        <button className="add-btn" onClick={openModalForCreate}>+ Add camera</button>
+        {isAdmin && (
+          <button className="add-btn" onClick={openModalForCreate}>+ Add camera</button>
+        )}
       </div>
 
       <div className="cam-list">
@@ -91,8 +96,10 @@ export default function CameraSettings() {
                   ? <button className="action-btn start" onClick={() => startCamera(cam.id)} title="Start">▶</button>
                   : <button className="action-btn stop" onClick={() => stopCamera(cam.id)} title="Stop">⏹</button>
                 }
-                <button className="action-btn edit" onClick={() => openModalForEdit(cam)} title="Edit">✎</button>
-                <button className="action-btn delete" onClick={() => deleteCamera(cam.id)} title="Delete">🗑</button>
+                {isAdmin && <>
+                    <button className="action-btn edit" onClick={() => openModalForEdit(cam)}>✎</button>
+                    <button className="action-btn delete" onClick={() => deleteCamera(cam.id)}>🗑</button>
+                </>}
                 <span className="expand-arrow">{expandedId === cam.id ? "▴" : "▾"}</span>
               </div>
             </div>

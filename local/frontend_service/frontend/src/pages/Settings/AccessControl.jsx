@@ -117,7 +117,6 @@ export default function AccessControl() {
                     </form>
                 </div>
 
-                {/* Reset password */}
                 <div className="ac-card">
                     <div className="ac-card-header">
                         <div className="ac-card-icon reset">
@@ -165,7 +164,7 @@ export default function AccessControl() {
                         <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" opacity="0.3">
                             <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
                         </svg>
-                        <span>User list will appear here once the API endpoint is available</span>
+                        <span>User list will appear later</span>
                     </div>
                 </div>
             </div>
