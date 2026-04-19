@@ -1,15 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal} from "react-dom";
 import './AddCameraModal.scss';
 
-const InfoIcon = ({ text }) => (
-    <span className="info-tooltip" data-tooltip={text}>?</span>
-);
+const InfoIcon = ({ text }) => {
+    const [visible, setVisible] = useState(false);
+    const [pos, setPos] = useState({ top: 0, left: 0 });
+    const ref = useRef(null);
+
+    const show = () => {
+        if (!ref.current) return;
+        const rect = ref.current.getBoundingClientRect();
+        let left = rect.left + rect.width / 2 - 100;
+        if (left < 8) left = 8;
+        if (left + 200 > window.innerWidth - 8) left = window.innerWidth - 208;
+
+        setPos({
+            top: rect.top - 8,
+            left,
+        });
+        setVisible(true);
+    };
+
+    return (
+        <>
+            <span
+                ref={ref}
+                className="info-icon"
+                onMouseEnter={show}
+                onMouseLeave={() => setVisible(false)}
+            >?</span>
+            {visible && createPortal(
+                <div className="info-tooltip-popup" style={{ top: pos.top, left: pos.left }}>
+                    {text}
+                </div>,
+                document.body
+            )}
+        </>
+    );
+};
 
 const defaultData = {
     rtsp: '',
     name: '',
     enabled: true,
-    fps: 5.0,
+    fps: 5,
     resize_width: 1280,
     jpeg_quality: 80,
     reconnect_delay: 5,
@@ -90,7 +124,7 @@ export default function AddCameraModal({ isOpen, onClose, onSave, initialValues 
                             <div className="input-group">
                                 <label>FPS <InfoIcon text="Frames per second. Recommended: 1.0–5.0 for detection." /></label>
                                 <input
-                                    type="number" step="0.5" min="0.1" max="30"
+                                    type="number" step="1" min="1" max="30"
                                     value={formData.fps}
                                     onChange={e => set('fps', num(e.target.value, true))}
                                 />
