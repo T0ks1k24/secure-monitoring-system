@@ -17,6 +17,19 @@ export default function CameraTile({
     const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
     const { data: zones = [] } = useGetZonesQuery(camera.zoneCameraId || camera.id);
 
+    const ZONE_COLORS = {
+        restricted: "#ff0000",
+        danger: "#ff0000",
+        perimeter: "#ffb700",
+        warning: "#ffb700",
+        safe_zone: "#00ff5e",
+        safe: "#00ff5e",
+        pedestrian: "#0073ff",
+        counting_line: "#b57200",
+        entrance: "#8000ff",
+        parking: "#7f00ff",
+    };
+
     useLayoutEffect(() => {
         const media = mediaRef.current;
         const canvas = canvasRef.current;
@@ -44,11 +57,7 @@ export default function CameraTile({
             if (!zone.points || zone.points.length < 2) return;
             const { width, height } = canvas;
 
-            let color = "red";
-            if (zone.zone_type === "perimeter") color = "yellow";
-            else if (zone.zone_type === "safe_zone") color = "limegreen";
-            else if (zone.zone_type === "pedestrian") color = "#60a5fa";
-            else if (zone.zone_type === "counting_line") color = "#f59e0b";
+            const color = ZONE_COLORS[zone.zone_type] || "#ff0000";
 
             if (mode === "edit") {
                 ctx.globalAlpha = zone.id === editingZoneId ? 1.0 : 0.4;

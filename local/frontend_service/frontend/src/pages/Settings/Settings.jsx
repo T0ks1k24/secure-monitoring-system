@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useRole } from "../../hooks/useRole";
 import CameraSettings from "./CameraSettings/CameraSettings";
 import DisplaySettings from "./DisplaySettings/DisplaySettings";
-import AccessControl from "./AccessControl";
+import AccessControl from "./AccessControl/AccessControl";
 import "./Settings.scss";
 
 export default function Settings() {
