@@ -1,5 +1,6 @@
 import { useRef, useEffect, useLayoutEffect, useState } from "react";
 import { useGetZonesQuery } from "../../services/zonesApi";
+import { current } from "@reduxjs/toolkit";
 
 const getCenterOfPolygon = (points) => {
     if (!points || points.length === 0) return { x: 0, y: 0 };
@@ -7,6 +8,21 @@ const getCenterOfPolygon = (points) => {
     const y = points.reduce((sum, p) => sum + p[1], 0) / points.length;
     return { x, y };
 };
+
+function isZoneRelaxed(zone, now) {
+    if (!zone.time_windows || zone.time_windows.length === 0) return false;
+    
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    
+    return zone.time_windows.some(tw => {
+        if (!tw.start || !tw.end) return false;
+        const [sh, sm] = tw.start.split(":").map(Number);
+        const [eh, em] = tw.end.split(":").map(Number);
+        const startMinutes = sh * 60 + sm;
+        const endMinutes = eh * 60 + em;
+        return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+    });
+}
 
 export default function CameraTile({ 
     camera, isFocused, isZoneMenuOpen, currentDrawingPoints, onPointAdd,
@@ -16,6 +32,8 @@ export default function CameraTile({
     const canvasRef = useRef(null);
     const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
     const { data: zones = [] } = useGetZonesQuery(camera.zoneCameraId || camera.id);
+
+    const [currentTime, setCurrentTime] = useState(new Date());
 
     const ZONE_COLORS = {
         restricted: "#ff0000",
@@ -29,6 +47,11 @@ export default function CameraTile({
         entrance: "#8000ff",
         parking: "#7f00ff",
     };
+
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     useLayoutEffect(() => {
         const media = mediaRef.current;
@@ -59,13 +82,17 @@ export default function CameraTile({
 
             const color = ZONE_COLORS[zone.zone_type] || "#ff0000";
 
+            const relaxed = isZoneRelaxed(zone, currentTime);
+
             if (mode === "edit") {
                 ctx.globalAlpha = zone.id === editingZoneId ? 1.0 : 0.4;
                 ctx.lineWidth = zone.id === editingZoneId ? 4 : 2;
             } else {
-                ctx.globalAlpha = 1.0;
-                ctx.lineWidth = 2;
+                ctx.globalAlpha = relaxed ? 0.35 : 1.0;
+                ctx.lineWidth = relaxed ? 1 : 2;
             }
+
+            ctx.setLineDash(relaxed ? [6, 4] : []);
 
             ctx.beginPath();
             ctx.moveTo(zone.points[0][0] * width, zone.points[0][1] * height);
@@ -75,6 +102,8 @@ export default function CameraTile({
             if (zone.points.length > 2) ctx.closePath();
             ctx.strokeStyle = color;
             ctx.stroke();
+
+            ctx.setLineDash([]);
 
             zone.points.forEach(([relX, relY]) => {
                 ctx.beginPath();
@@ -119,7 +148,7 @@ export default function CameraTile({
                 ctx.fill();
             });
         }
-    }, [zones, isZoneMenuOpen, currentDrawingPoints, mode, editingZoneId, canvasSize]);
+    }, [zones, isZoneMenuOpen, currentDrawingPoints, mode, editingZoneId, canvasSize, currentTime]);
 
     const handleClick = (e) => {
         if (mode !== "draw") return;
