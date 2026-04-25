@@ -22,6 +22,7 @@ function UserRow({ user, onResetSuccess }) {
     const [newPwd, setNewPwd] = useState("");
     const [status, setStatus] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [showPwd, setShowPwd] = useState(false);
 
     const badge = ROLE_BADGE[user.role] || ROLE_BADGE.OPERATOR;
 
@@ -81,18 +82,32 @@ function UserRow({ user, onResetSuccess }) {
                         <code className="user-reset-id-value">{user.id}</code>
                     </div>
                     <div className="user-reset-form">
-                        <input
-                            type="password"
-                            placeholder="New password (min 6 chars)"
-                            value={newPwd}
-                            onChange={e => setNewPwd(e.target.value)}
-                            onKeyDown={e => e.key === "Enter" && handleReset()}
-                        />
-                        <button
-                            className="user-reset-confirm"
-                            onClick={handleReset}
-                            disabled={loading}
-                        >
+                        <div className="pwd-input-wrap">
+                            <input
+                                type={showPwd ? "text" : "password"}
+                                placeholder="New password (min 6 chars)"
+                                value={newPwd}
+                                onChange={e => setNewPwd(e.target.value)}
+                                onKeyDown={e => e.key === "Enter" && handleReset()}
+                            />
+                            <button
+                                type="button"
+                                className="pwd-toggle"
+                                onClick={() => setShowPwd(p => !p)}
+                                tabIndex={-1}
+                            >
+                                {showPwd ? (
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                        <path d="M13.36 4.64a8.28 8.28 0 0 0-10.72 0A8.1 8.1 0 0 0 .5 8a8.1 8.1 0 0 0 2.14 3.36 8.28 8.28 0 0 0 10.72 0A8.1 8.1 0 0 0 15.5 8a8.1 8.1 0 0 0-2.14-3.36zM8 11.5A3.5 3.5 0 1 1 8 4.5a3.5 3.5 0 0 1 0 7zm0-5.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+                                    </svg>
+                                ) : (
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                        <path d="M2.22 2.22a.75.75 0 0 0-1.06 1.06l1.5 1.5A8.12 8.12 0 0 0 .5 8a8.1 8.1 0 0 0 2.14 3.36 8.28 8.28 0 0 0 10.72 0l1.42 1.42a.75.75 0 1 0 1.06-1.06L2.22 2.22zm10 7.5-.02.02A3.5 3.5 0 0 1 7.3 5.4L5.9 4A6.77 6.77 0 0 1 8 3.6c2.42 0 4.52 1.37 5.86 3.36-.5.76-1.14 1.44-1.86 1.96l.22.22zM8 11.5c-.67 0-1.32-.13-1.92-.36l-1.1-1.1A3.5 3.5 0 0 0 9.96 6.14l-1.1-1.1c-.27-.06-.56-.04-.86-.04a3.5 3.5 0 0 0-3.5 3.5c0 .3.04.59.1.86l-1.04-1.04A6.5 6.5 0 0 0 2.14 8C3.48 10 5.58 11.5 8 11.5z" />
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
+                        <button className="user-reset-confirm" onClick={handleReset} disabled={loading}>
                             {loading ? <span className="ac-spinner" /> : "Confirm"}
                         </button>
                     </div>

@@ -1,9 +1,9 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
-import { baseQueryWithRefresh } from "./baseQueryWithRefresh";
+import { createBaseQueryWithRefresh } from "./baseQueryWithRefresh";
 
 export const authApi = createApi({
     reducerPath: "authApi",
-    baseQuery: baseQueryWithRefresh("/auth"),
+    baseQuery: createBaseQueryWithRefresh(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/auth`),
     tagTypes: ["Users"],
     endpoints: (builder) => ({
         login: builder.mutation({

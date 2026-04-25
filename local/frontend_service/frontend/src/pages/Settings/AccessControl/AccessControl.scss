@@ -426,3 +426,42 @@
   &::-webkit-scrollbar-track { background: #020617; }
   &::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; &:hover { background: #475569; } }
 }
+
+.pwd-input-wrap {
+  flex: 1;
+  position: relative;
+
+  input {
+    width: 100%;
+    padding-right: 38px;
+    box-sizing: border-box;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 8px 38px 8px 12px;
+    color: white;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+
+    &:focus { border-color: #2563eb; }
+    &::placeholder { color: #475569; }
+  }
+}
+
+.pwd-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #475569;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+
+  &:hover { color: #94a3b8; }
+}

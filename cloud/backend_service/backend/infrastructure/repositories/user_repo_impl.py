@@ -20,7 +20,7 @@ class UserRepositoryImpl(UserRepository):
             created_at=user.created_at
         )
 
-        db.add(model)
+        db.merge(model)
         db.commit()
         db.close()
 

@@ -138,7 +138,7 @@ def reset_password(
 ):
 
     user = service.reset_password(
-        user_id=data.user_id,
+        user_id=uuid.UUID(str(data.user_id)),
         new_password=data.new_password
     )
 
