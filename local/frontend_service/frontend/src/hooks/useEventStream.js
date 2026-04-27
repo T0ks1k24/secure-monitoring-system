@@ -4,7 +4,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").r
 const WS_EVENTS_URL = import.meta.env.VITE_WS_EVENTS_URL ||
     `${API_BASE_URL.replace(/^https/, "wss").replace(/^http/, "ws")}/ws/events`;
 
-const MAX_EVENTS = 50;
+const MAX_EVENTS = 200;
 
 function normalizeEvent(raw) {
     if (!raw || typeof raw !== "object") return null;

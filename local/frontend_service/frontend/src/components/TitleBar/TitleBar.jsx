@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { logOut } from "../../services/auth/authSlice";
 import "./TitleBar.scss"
@@ -21,6 +21,9 @@ export default function TitleBar() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  const cameraId = location.pathname.startsWith("/monitoring/")
+    ? location.pathname.split("/monitoring/")[1]
+    : null;
 
   const isMonitoring = location.pathname.startsWith("/monitoring") || location.pathname === "/";
   const isSettings = location.pathname.startsWith("/settings");
@@ -52,6 +55,17 @@ export default function TitleBar() {
         {!isSettings && (
           <button onClick={() => navigate("/settings")} title="Налаштування">⚙️</button>
         )}
+        <button
+          onClick={() => navigate(cameraId ? `/analytics?camera=${cameraId}` : "/analytics")}
+          title="Analytics"
+          className={location.pathname === "/analytics" ? "active" : ""}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="white">
+            <rect x="1" y="8" width="3" height="7" rx="1" />
+            <rect x="6" y="4" width="3" height="11" rx="1" />
+            <rect x="11" y="1" width="3" height="14" rx="1" />
+          </svg>
+        </button>
         {isMonitoring && (
           <button onClick={() => {
             window.windowAPI.toggleKiosk();

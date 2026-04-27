@@ -9,6 +9,7 @@ import Monitoring from "./pages/Monitoring/Monitoring";
 import CamerasGrid from "./pages/CamerasGrid/CamerasGrid";
 import Settings from "./pages/Settings/Settings";
 import Login from "./pages/Login/Login";
+import Analytics from "./pages/Analytics/Analytics";
 
 if (window.windowAPI?.getWindowId) {
     window.windowAPI.getWindowId().then(id => {
@@ -54,6 +55,7 @@ export default function App() {
                     <Route path="/monitoring/:cameraId" element={<ProtectedRoute><Monitoring /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                     <Route path="*" element={<Navigate to={isLoggedIn ? "/" : "/login"} replace />} />
+                    <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
                 </Routes>
             </div>
         </>
