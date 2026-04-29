@@ -4,7 +4,7 @@ import { useEventStream } from "../../hooks/useEventStream";
 import { useGetCamerasQuery } from "../../services/camerasApi";
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-    PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend
+    PieChart, Pie, Cell, Legend
 } from "recharts";
 import "./Analytics.scss";
 
@@ -61,12 +61,10 @@ function EventsByRisk({ events }) {
                         contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, color: "white" }}
                         labelStyle={{ color: "#f1f5f9", fontWeight: "bold", marginBottom: "4px" }}
                         itemStyle={{ color: "#f1f5f9", fontSize: "12px" }}
-                        cursor={{ fill: "rgba(255, 255, 255, 0.05)" }}
+                        cursor={{ fill: "rgba(255,255,255,0.05)" }}
                     />
                     <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                        {data.map((entry, i) => (
-                            <Cell key={i} fill={entry.color} />
-                        ))}
+                        {data.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                     </Bar>
                 </BarChart>
             </ResponsiveContainer>
@@ -94,28 +92,12 @@ function EventsByType({ events }) {
             <h3>Events by Type</h3>
             <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
-                    <Pie
-                        data={data}
-                        dataKey="count"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        innerRadius={45}
-                        paddingAngle={3}
-                    >
-                        {data.map((_, i) => (
-                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                        ))}
+                    <Pie data={data} dataKey="count" nameKey="name"
+                        cx="50%" cy="50%" outerRadius={80} innerRadius={45} paddingAngle={3}>
+                        {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
-                    <Tooltip
-                        contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, color: "white" }}
-                    />
-                    <Legend
-                        iconType="circle"
-                        iconSize={8}
-                        wrapperStyle={{ fontSize: 11, color: "#64748b" }}
-                    />
+                    <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, color: "white" }} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: "#64748b" }} />
                 </PieChart>
             </ResponsiveContainer>
         </div>
@@ -154,10 +136,7 @@ function TopZones({ events }) {
                             <div className="zone-rank-bar-wrap">
                                 <span className="zone-rank-name">{zone.name}</span>
                                 <div className="zone-rank-bar">
-                                    <div
-                                        className="zone-rank-fill"
-                                        style={{ width: `${(zone.count / max) * 100}%` }}
-                                    />
+                                    <div className="zone-rank-fill" style={{ width: `${(zone.count / max) * 100}%` }} />
                                 </div>
                             </div>
                             <span className="zone-rank-count">{zone.count}</span>
@@ -169,62 +148,228 @@ function TopZones({ events }) {
     );
 }
 
-function EventsTimeline({ events, timeRange }) {
+function HourlyHeatmap({ events }) {
+    const hours = Array.from({ length: 24 }, (_, i) => i);
+
     const data = useMemo(() => {
-        const buckets = {};
-        const now = Date.now();
-        const step = timeRange <= 60 ? 1 : 5;
-        const bucketCount = Math.ceil(timeRange / step);
-
-        for (let i = bucketCount - 1; i >= 0; i--) {
-            const t = new Date(now - i * step * 60000);
-            const key = `${t.getHours().toString().padStart(2, "0")}:${t.getMinutes().toString().padStart(2, "0")}`;
-            buckets[key] = { time: key, critical: 0, high: 0, medium: 0, low: 0 };
-        }
-
+        const total = Array(24).fill(0);
         events.forEach(e => {
-            const d = new Date(e.timestamp);
-            const roundedMinutes = Math.floor(d.getMinutes() / step) * step;
-            const key = `${d.getHours().toString().padStart(2, "0")}:${roundedMinutes.toString().padStart(2, "0")}`;
-            if (buckets[key] && e.risk_level) buckets[key][e.risk_level]++;
+            const h = new Date(e.timestamp).getHours();
+            total[h]++;
         });
+        return { total };
+    }, [events]);
 
-        return Object.values(buckets);
-    }, [events, timeRange]);
+    const maxVal = Math.max(...data.total, 1);
 
-    const label = timeRange < 60 ? `Last ${timeRange} min` : `Last ${timeRange / 60}h`;
+    const getColor = (val) => {
+        if (val === 0) return "#0f172a";
+        const intensity = val / maxVal;
+        if (intensity >= 0.75) return "#ef4444";
+        if (intensity >= 0.5)  return "#f97316";
+        if (intensity >= 0.25) return "#eab308";
+        return "#1e3a5f";
+    };
 
     return (
         <div className="chart-card wide">
-            <h3>Events Timeline — {label}</h3>
-            <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis
-                        dataKey="time"
-                        tick={{ fill: "#64748b", fontSize: 10 }}
-                        axisLine={false}
-                        tickLine={false}
-                        interval={timeRange <= 30 ? 4 : timeRange <= 60 ? 9 : 11}
-                    />
-                    <YAxis tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                        contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, color: "white" }}
-                    />
-                    <Legend wrapperStyle={{ fontSize: 11, color: "#64748b" }} />
-                    {RISK_ORDER.map(r => (
-                        <Line
-                            key={r}
-                            type="monotone"
-                            dataKey={r}
-                            stroke={RISK_COLORS[r]}
-                            strokeWidth={2}
-                            dot={false}
-                            name={r.toUpperCase()}
-                        />
+            <h3>Activity by Hour of Day</h3>
+            <div className="heatmap-wrap">
+                <div className="heatmap-grid">
+                    {hours.map(h => (
+                        <div key={h} className="heatmap-col">
+                            <div
+                                className="heatmap-cell"
+                                style={{ background: getColor(data.total[h]) }}
+                                title={`${h}:00 — ${data.total[h]} events`}
+                            >
+                                {data.total[h] > 0 && (
+                                    <span className="heatmap-val">{data.total[h]}</span>
+                                )}
+                            </div>
+                            <span className="heatmap-hour">{h.toString().padStart(2, "0")}</span>
+                        </div>
                     ))}
-                </LineChart>
-            </ResponsiveContainer>
+                </div>
+                <div className="heatmap-legend">
+                    <span>Low</span>
+                    <div className="heatmap-legend-bar" />
+                    <span>High</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function RecentEventsTable({ events, cameras }) {
+    const [sortField, setSortField] = useState("timestamp");
+    const [sortDir, setSortDir] = useState("desc");
+    const [riskFilter, setRiskFilter] = useState("all");
+
+    const cameraName = (id) => {
+        const cam = cameras.find(c => String(c.id) === String(id));
+        return cam ? (cam.name || `Camera ${cam.id}`) : String(id);
+    };
+
+    const handleSort = (field) => {
+        if (sortField === field) {
+            setSortDir(d => d === "asc" ? "desc" : "asc");
+        } else {
+            setSortField(field);
+            setSortDir("desc");
+        }
+    };
+
+    const sorted = useMemo(() => {
+        let list = riskFilter === "all" ? [...events] : events.filter(e => e.risk_level === riskFilter);
+        list.sort((a, b) => {
+            let av = a[sortField] || "";
+            let bv = b[sortField] || "";
+            if (sortField === "timestamp") {
+                av = new Date(av).getTime();
+                bv = new Date(bv).getTime();
+            }
+            return sortDir === "asc" ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+        });
+        return list.slice(0, 200);
+    }, [events, sortField, sortDir, riskFilter]);
+
+    const exportCSV = () => {
+        const headers = ["Time", "Type", "Risk", "Zone", "Object", "Confidence", "Camera", "Track ID"];
+
+        const escape = (val) => {
+            const str = String(val ?? "");
+            if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
+        const rows = sorted.map(e => [
+            escape(new Date(e.timestamp).toLocaleString("uk-UA", {
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+            })),
+            escape(e.event_type.replace(/_/g, " ")),
+            escape(e.risk_level?.toUpperCase() || "-"),
+            escape(e.zone_name || "-"),
+            escape(e.object_class || "-"),
+            escape(e.confidence != null ? `${Math.round(e.confidence * 100)}%` : "-"),
+            escape(cameraName(e.camera_id)),
+            escape(e.track_id != null ? `#${e.track_id}` : "-"),
+        ]);
+
+        const csvContent = [
+            headers.map(escape).join(";"),
+            ...rows.map(r => r.join(";")),
+        ].join("\r\n");
+
+        const BOM = "\uFEFF";
+        const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `security_events_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const SortIcon = ({ field }) => {
+        if (sortField !== field) return <span className="sort-icon">↕</span>;
+        return <span className="sort-icon active">{sortDir === "asc" ? "↑" : "↓"}</span>;
+    };
+
+    return (
+        <div className="chart-card wide">
+            <div className="table-header">
+                <h3>Recent Events</h3>
+                <div className="table-controls">
+                    <div className="risk-tabs">
+                        {["all", ...RISK_ORDER].map(r => (
+                            <button
+                                key={r}
+                                className={`risk-tab ${riskFilter === r ? "active" : ""}`}
+                                style={riskFilter === r && r !== "all" ? {
+                                    background: RISK_COLORS[r],
+                                    borderColor: RISK_COLORS[r],
+                                    color: "white",
+                                } : {}}
+                                onClick={() => setRiskFilter(r)}
+                            >
+                                {r === "all" ? "All" : r.toUpperCase()}
+                            </button>
+                        ))}
+                    </div>
+                    <button className="export-btn" onClick={exportCSV}>
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" strokeWidth="1.5"
+                                strokeLinecap="round" fill="none"/>
+                        </svg>
+                        Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <div className="events-table-wrap">
+                <table className="events-table">
+                    <thead>
+                        <tr>
+                            <th onClick={() => handleSort("timestamp")}>Time <SortIcon field="timestamp"/></th>
+                            <th onClick={() => handleSort("event_type")}>Type <SortIcon field="event_type"/></th>
+                            <th onClick={() => handleSort("risk_level")}>Risk <SortIcon field="risk_level"/></th>
+                            <th onClick={() => handleSort("zone_name")}>Zone <SortIcon field="zone_name"/></th>
+                            <th onClick={() => handleSort("object_class")}>Object <SortIcon field="object_class"/></th>
+                            <th>Confidence</th>
+                            <th onClick={() => handleSort("camera_id")}>Camera <SortIcon field="camera_id"/></th>
+                            <th>Track ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sorted.length === 0 ? (
+                            <tr><td colSpan={8} className="table-empty">No events</td></tr>
+                        ) : (
+                            sorted.map(e => (
+                                <tr key={e.id}>
+                                    <td className="td-time">
+                                        {new Date(e.timestamp).toLocaleString("uk-UA", {
+                                            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                                            day: "2-digit",
+                                            month: "2-digit",
+                                            year: "numeric",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                            second: "2-digit",
+                                        })}
+                                    </td>
+                                    <td className="td-type">{e.event_type.replace(/_/g, " ")}</td>
+                                    <td>
+                                        <span className="risk-pill" style={{
+                                            background: `${RISK_COLORS[e.risk_level]}22`,
+                                            color: RISK_COLORS[e.risk_level],
+                                        }}>
+                                            {e.risk_level?.toUpperCase()}
+                                        </span>
+                                    </td>
+                                    <td className="td-muted">{e.zone_name || "—"}</td>
+                                    <td className="td-muted">{e.object_class || "—"}</td>
+                                    <td className="td-muted">
+                                        {e.confidence != null ? `${Math.round(e.confidence * 100)}%` : "—"}
+                                    </td>
+                                    <td className="td-muted">{cameraName(e.camera_id)}</td>
+                                    <td className="td-muted">
+                                        {e.track_id != null ? `#${e.track_id}` : "—"}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }
@@ -245,7 +390,6 @@ export default function Analytics() {
     const { data: cameras = [] } = useGetCamerasQuery();
 
     const [cameraFilter, setCameraFilter] = useState(searchParams.get("camera") || "all");
-    const [timeRange, setTimeRange] = useState(30);
 
     useEffect(() => {
         const cam = searchParams.get("camera");
@@ -257,10 +401,10 @@ export default function Analytics() {
         return events.filter(e => String(e.camera_id) === String(cameraFilter));
     }, [events, cameraFilter]);
 
-    const criticalCount = filteredEvents.filter(e => e.risk_level === "critical").length;
-    const highCount = filteredEvents.filter(e => e.risk_level === "high").length;
-    const uniqueZones = new Set(filteredEvents.map(e => e.zone_name).filter(Boolean)).size;
-    const runningCameras = cameras.filter(c => c.status === "running").length;
+    const criticalCount    = filteredEvents.filter(e => e.risk_level === "critical").length;
+    const highCount        = filteredEvents.filter(e => e.risk_level === "high").length;
+    const uniqueZones      = new Set(filteredEvents.map(e => e.zone_name).filter(Boolean)).size;
+    const runningCameras   = cameras.filter(c => c.status === "running").length;
 
     return (
         <div className="analytics-page">
@@ -270,27 +414,14 @@ export default function Analytics() {
                     <p>Real-time security event analysis</p>
                 </div>
                 <div className="analytics-controls">
-                    <select
-                        className="camera-filter"
-                        value={cameraFilter}
-                        onChange={e => setCameraFilter(e.target.value)}
-                    >
+                    <select className="camera-filter" value={cameraFilter}
+                        onChange={e => setCameraFilter(e.target.value)}>
                         <option value="all">All cameras</option>
                         {cameras.map(c => (
                             <option key={c.id} value={String(c.id)}>
                                 {c.name || `Camera ${c.id}`}
                             </option>
                         ))}
-                    </select>
-                    <select
-                        className="camera-filter"
-                        value={timeRange}
-                        onChange={e => setTimeRange(Number(e.target.value))}
-                    >
-                        <option value={15}>Last 15 min</option>
-                        <option value={30}>Last 30 min</option>
-                        <option value={60}>Last 1 hour</option>
-                        <option value={360}>Last 6 hours</option>
                     </select>
                     <div className={`ws-status ws-${status}`}>
                         <span className="ws-dot" />
@@ -312,7 +443,8 @@ export default function Analytics() {
                 <EventsByRisk events={filteredEvents} />
                 <EventsByType events={filteredEvents} />
                 <TopZones events={filteredEvents} />
-                <EventsTimeline events={filteredEvents} timeRange={timeRange} />
+                <HourlyHeatmap events={filteredEvents} />
+                <RecentEventsTable events={filteredEvents} cameras={cameras} />
             </div>
         </div>
     );
