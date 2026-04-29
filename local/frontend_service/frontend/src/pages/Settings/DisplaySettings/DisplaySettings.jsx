@@ -88,10 +88,10 @@ export default function DisplaySettings() {
 
     return (
         <div className="tab-content">
-            <h2>Відображення</h2>
+            <h2>Display Settings</h2>
 
             <div className="setting-row">
-                <label>Кількість слотів на головному екрані</label>
+                <label>Number of slots on main screen</label>
                 <div className="slot-options">
                     {[4, 6, 9, 12, 16].map(n => (
                         <button
@@ -106,7 +106,7 @@ export default function DisplaySettings() {
             </div>
 
             <div className="setting-row">
-                <label>Попередній перегляд сітки</label>
+                <label>Grid preview</label>
                 <div
                     className="grid-preview"
                     style={{

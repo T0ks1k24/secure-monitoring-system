@@ -41,7 +41,7 @@ export default function CameraSettings() {
     }
   };
 
-  if (isLoading) return <div className="loading">Завантаження...</div>;
+  if (isLoading) return <div className="loading">Loading...</div>;
 
   return (
     <div className="settings-container">

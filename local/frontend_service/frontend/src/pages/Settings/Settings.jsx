@@ -12,9 +12,9 @@ export default function Settings() {
   const { isAdmin } = useRole();
 
   const TABS = [
-    { id: "cameras", label: "📷 Камери", show: true },
-    { id: "display", label: "🖥️ Відображення", show: true},
-    { id: "connection", label: "🔗 Підключення", show: isAdmin },
+    { id: "cameras", label: "📷 Cameras", show: true },
+    { id: "display", label: "🖥️ Display", show: true},
+    { id: "connection", label: "🔗 Connection", show: isAdmin },
     { id: "access", label: "🔐 Access Control", show: isAdmin },
   ].filter(t => t.show);
 
@@ -66,9 +66,9 @@ function ConnectionSettings() {
 
   return (
     <div className="tab-content">
-      <h2>Підключення</h2>
+      <h2>Connection Settings</h2>
       <div className="setting-row">
-        <label>URL бекенду</label>
+        <label>Backend URL</label>
         <input value={apiUrl} onChange={e => setApiUrl(e.target.value)} placeholder="http://localhost:8000" />
       </div>
       <div className="setting-row">
@@ -76,9 +76,9 @@ function ConnectionSettings() {
         <input value={mediaUrl} onChange={e => setMediaUrl(e.target.value)} placeholder="http://localhost:8889" />
       </div>
       <button className="save-btn" onClick={handleSave}>
-        {saved ? "✓ Збережено" : "Зберегти"}
+        {saved ? "✓ Saved" : "Save"}
       </button>
-      <p className="hint">Після зміни URL перезапустіть додаток щоб зміни набули чинності.</p>
+      <p className="hint">Restart the application for changes to take effect.</p>
     </div>
   );
 }

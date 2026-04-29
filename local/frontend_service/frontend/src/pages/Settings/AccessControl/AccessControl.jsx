@@ -155,7 +155,6 @@ export default function AccessControl() {
             </p>
 
             <div className="ac-top">
-                {/* Create user */}
                 <div className="ac-card">
                     <div className="ac-card-header">
                         <div className="ac-card-icon create">
@@ -205,8 +204,6 @@ export default function AccessControl() {
                     </form>
                 </div>
             </div>
-
-            {/* Users list */}
             <div className="users-section">
                 <div className="users-section-header">
                     <h3>System users</h3>

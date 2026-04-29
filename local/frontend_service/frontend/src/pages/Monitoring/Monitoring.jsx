@@ -211,7 +211,7 @@ export default function Monitoring() {
         .filter(evt => camera ? eventMatchesCamera(evt.camera_id, camera) : true)
         .filter(evt => riskFilter === "all" || evt.risk_level === riskFilter);
 
-    if (!camera) return <div className="loading">Завантаження камери...</div>;
+    if (!camera) return <div className="loading">Loading camera...</div>;
 
     return (
         <div className={`monitoring-container ${isPanelOpen ? "panel-open" : "panel-closed"}`}>
@@ -237,15 +237,15 @@ export default function Monitoring() {
             </div>
 
             <aside className={`control-panel ${isPanelOpen ? "visible" : ""}`}>
-                <h2>Керування</h2>
+                <h2>Control panel</h2>
 
                 <div className="system-health">
-                    <div>Камера: <strong>{camera.name}</strong></div>
-                    <div>Статус: <strong>{camera.status}</strong></div>
+                    <div>Camera: <strong>{camera.name}</strong></div>
+                    <div>Status: <strong>{camera.status}</strong></div>
                 </div>
 
                 <button className="zone-btn" onClick={() => { setIsZoneMenuOpen(!isZoneMenuOpen); resetDrawState(); }}>
-                    {isZoneMenuOpen ? "Сховати зони" : isAdmin ? "Управління зонами" : "Переглянути зони"}
+                    {isZoneMenuOpen ? "Hide zones" : isAdmin ? "Manage zones" : "View zones"}
                 </button>
 
                 {isZoneMenuOpen && (
@@ -253,11 +253,11 @@ export default function Monitoring() {
                         {mode === "view" ? (
                             <>
                                 {isAdmin && (
-                                    <button className="zone-btn" onClick={() => setMode("draw")}>+ Додати нову зону</button>
+                                    <button className="zone-btn" onClick={() => setMode("draw")}>+ Add new zone</button>
                                 )}
                                 {activeZones.length > 0 && (
                                     <div className="zones-list">
-                                        <h3>Існуючі зони:</h3>
+                                        <h3>Existing zones:</h3>
                                         <ul>
                                             {activeZones.map(zone => (
                                                 <li key={zone.id} className={`zone-item ${expandedZoneId === zone.id ? "expanded" : ""}`}>
@@ -467,7 +467,7 @@ export default function Monitoring() {
                 {!isZoneMenuOpen && (
                     <div className="events-block">
                         <div className="events-header">
-                            <h3>Події</h3>
+                            <h3>Events</h3>
                             <div className={`ws-status ws-${eventsStatus}`}>
                                 <span className="ws-dot" />
                                 {eventsStatus}
@@ -486,7 +486,7 @@ export default function Monitoring() {
                         </div>
                         <div className="events-scroll">
                             {visibleEvents.length === 0 ? (
-                                <div className="events-empty">Подій поки немає</div>
+                                <div className="events-empty">No events yet</div>
                             ) : (
                                 visibleEvents.map(event => (
                                     <EventCard key={`${event.id}-${event.timestamp}`} event={event} />
@@ -500,10 +500,10 @@ export default function Monitoring() {
             {selectedZoneId && (
                 <div className="modal-overlay">
                     <div className="modal-box">
-                        <p>Ви впевнені, що хочете видалити цю зону?</p>
+                        <p>Are you sure you want to delete this zone?</p>
                         <div className="modal-actions">
-                            <button className="delete-btn" onClick={async () => { await deleteZone(selectedZoneId); setSelectedZoneId(null); }}>Видалити</button>
-                            <button className="zone-btn" style={{ background: "#475569" }} onClick={() => setSelectedZoneId(null)}>Скасувати</button>
+                            <button className="delete-btn" onClick={async () => { await deleteZone(selectedZoneId); setSelectedZoneId(null); }}>Delete</button>
+                            <button className="zone-btn" style={{ background: "#475569" }} onClick={() => setSelectedZoneId(null)}>Cancel</button>
                         </div>
                     </div>
                 </div>

@@ -43,8 +43,8 @@ export default function TitleBar() {
       <div className="nav-buttons">
         <button onClick={() => navigate(-1)}>🡐</button>
         <button onClick={() => navigate(1)}>🡒</button>
-        <button onClick={() => navigate("/")} title="Головна"><HomeIcon/></button>
-        <button className="popout-main-btn" onClick={openNewWindow} title="Відкрити нове робоче вікно">
+        <button onClick={() => navigate("/")} title="Home"><HomeIcon/></button>
+        <button className="popout-main-btn" onClick={openNewWindow} title="Open new workspace window">
           ❐
         </button>
       </div>
@@ -53,7 +53,7 @@ export default function TitleBar() {
 
       <div className="window-buttons">
         {!isSettings && (
-          <button onClick={() => navigate("/settings")} title="Налаштування">⚙️</button>
+          <button onClick={() => navigate("/settings")} title="Settings">⚙️</button>
         )}
         <button
           onClick={() => navigate(cameraId ? `/analytics?camera=${cameraId}` : "/analytics")}
@@ -70,9 +70,9 @@ export default function TitleBar() {
           <button onClick={() => {
             window.windowAPI.toggleKiosk();
             window.dispatchEvent(new CustomEvent("kiosk-toggle"));
-          }} title="Режим моніторингу">⛶</button>
+          }} title="Monitoring mode">⛶</button>
         )}
-        <button onClick={handleLogout} title="Вийти з системи" className="logout-btn">
+        <button onClick={handleLogout} title="Log out" className="logout-btn">
           <LogoutIcon />
         </button>
         <button onClick={() => window.windowAPI.minimize()}>—</button>
