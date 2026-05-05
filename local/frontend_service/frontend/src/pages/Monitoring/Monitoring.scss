@@ -447,6 +447,22 @@
   button { flex: 1; margin: 0; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
 }
 
+.redraw-btn {
+    background: none;
+    border: 1px solid #f59e0b;
+    color: #f59e0b;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    width: 100%;
+    transition: all 0.2s;
+    margin-bottom: 4px;
+
+    &:hover {
+        background: rgba(245, 158, 11, 0.1);
+    }
+}
 
 .events-block {
   margin-top: 16px;

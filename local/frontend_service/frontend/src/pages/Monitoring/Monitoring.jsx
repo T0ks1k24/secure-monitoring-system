@@ -88,7 +88,6 @@ export default function Monitoring() {
     const { data: cameras = [] } = useGetCamerasQuery();
     const { events, status: eventsStatus } = useEventStream();
     const { isKiosk, showExitBtn, setShowExitBtn, exitKiosk } = useKioskMode();
-
     const { isAdmin } = useRole();
 
     const camera = useMemo(() => {
@@ -113,6 +112,7 @@ export default function Monitoring() {
     const [editingZoneId, setEditingZoneId] = useState(null);
     const [expandedZoneId, setExpandedZoneId] = useState(null);
     const [riskFilter, setRiskFilter] = useState("all");
+    const [isRedrawing, setIsRedrawing] = useState(false);
 
     const [zoneForm, setZoneForm] = useState({
         name: "",
@@ -138,12 +138,11 @@ export default function Monitoring() {
     const [deleteZone] = useDeleteZoneMutation();
     const [updateZone] = useUpdateZoneMutation();
 
-    const hasWindowApi = typeof window !== "undefined" && !!window.windowAPI;
-
     const resetDrawState = () => {
         setMode("view");
         setEditingZoneId(null);
         setCurrentZone([]);
+        setIsRedrawing(false);
         setZoneForm({
             name: "",
             zone_type: "danger",
@@ -163,13 +162,14 @@ export default function Monitoring() {
 
     const handleSaveZone = async () => {
         const isEdit = mode === "edit";
+        if (isRedrawing && currentZone.length < 3) return;
         if (!isEdit && currentZone.length < 3) return;
 
         const canvas = document.querySelector(".camera-tile canvas");
         if (!canvas) return;
         const { width, height } = canvas;
 
-        const pointsToSave = isEdit
+        const pointsToSave = (isEdit && !isRedrawing)
             ? activeZones.find(z => z.id === editingZoneId)?.points
             : currentZone.map(([x, y]) => [x / width, y / height]);
 
@@ -225,7 +225,12 @@ export default function Monitoring() {
                         currentDrawingPoints={currentZone}
                         mode={mode}
                         editingZoneId={editingZoneId}
-                        onPointAdd={(p) => mode === "draw" && setCurrentZone(prev => [...prev, p])}
+                        isRedrawing={isRedrawing}
+                        onPointAdd={(p) => {
+                            if (mode === "draw" || (mode === "edit" && isRedrawing)) {
+                                setCurrentZone(prev => [...prev, p]);
+                            }
+                        }}
                     />
                 </main>
 
@@ -278,6 +283,8 @@ export default function Monitoring() {
                                                                     setMode("edit");
                                                                     setEditingZoneId(zone.id);
                                                                     setExpandedZoneId(null);
+                                                                    setIsRedrawing(false);
+                                                                    setCurrentZone([]);
                                                                     setZoneForm({
                                                                         name: zone.name,
                                                                         zone_type: zone.zone_type,
@@ -373,6 +380,19 @@ export default function Monitoring() {
                                         <input type="text" placeholder="default: 0 (unlimited)" value={zoneForm.max_people_allowed}
                                             onChange={e => setZoneForm({ ...zoneForm, max_people_allowed: e.target.value })} />
                                     </div>
+
+                                    {mode === "edit" && (
+                                        <button
+                                            type="button"
+                                            className="redraw-btn"
+                                            onClick={() => {
+                                                setIsRedrawing(true);
+                                                setCurrentZone([]);
+                                            }}
+                                        >
+                                            {isRedrawing ? "✎ Drawing new polygon..." : "↺ Redraw zone polygon"}
+                                        </button>
+                                    )}
 
                                     <button type="button" className="advanced-toggle"
                                         onClick={() => setZoneForm({ ...zoneForm, _showAdvanced: !zoneForm._showAdvanced })}>

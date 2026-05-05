@@ -1,6 +1,5 @@
 import { useRef, useEffect, useLayoutEffect, useState } from "react";
 import { useGetZonesQuery } from "../../services/zonesApi";
-import { current } from "@reduxjs/toolkit";
 
 const getCenterOfPolygon = (points) => {
     if (!points || points.length === 0) return { x: 0, y: 0 };
@@ -11,42 +10,34 @@ const getCenterOfPolygon = (points) => {
 
 function isZoneRelaxed(zone, now) {
     if (!zone.time_windows || zone.time_windows.length === 0) return false;
-    
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    
     return zone.time_windows.some(tw => {
         if (!tw.start || !tw.end) return false;
         const [sh, sm] = tw.start.split(":").map(Number);
         const [eh, em] = tw.end.split(":").map(Number);
-        const startMinutes = sh * 60 + sm;
-        const endMinutes = eh * 60 + em;
-        return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+        return currentMinutes >= sh * 60 + sm && currentMinutes <= eh * 60 + em;
     });
 }
 
-export default function CameraTile({ 
+const ZONE_COLORS = {
+    restricted: "#ff0000", danger:        "#ff0000",
+    perimeter:  "#ffb700", warning:       "#ffb700",
+    safe_zone:  "#00ff5e", safe:          "#00ff5e",
+    pedestrian: "#0073ff",
+    counting_line: "#b57200",
+    entrance:   "#8000ff", parking:       "#7f00ff",
+};
+
+export default function CameraTile({
     camera, isFocused, isZoneMenuOpen, currentDrawingPoints, onPointAdd,
-    mode, editingZoneId, isPanelOpen 
+    mode, editingZoneId, isPanelOpen, isRedrawing = false
 }) {
     const mediaRef = useRef(null);
     const canvasRef = useRef(null);
     const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
-    const { data: zones = [] } = useGetZonesQuery(camera.zoneCameraId || camera.id);
-
     const [currentTime, setCurrentTime] = useState(new Date());
 
-    const ZONE_COLORS = {
-        restricted: "#ff0000",
-        danger: "#ff0000",
-        perimeter: "#ffb700",
-        warning: "#ffb700",
-        safe_zone: "#00ff5e",
-        safe: "#00ff5e",
-        pedestrian: "#0073ff",
-        counting_line: "#b57200",
-        entrance: "#8000ff",
-        parking: "#7f00ff",
-    };
+    const { data: zones = [] } = useGetZonesQuery(camera.zoneCameraId || camera.id);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -79,20 +70,23 @@ export default function CameraTile({
         zones.forEach(zone => {
             if (!zone.points || zone.points.length < 2) return;
             const { width, height } = canvas;
-
             const color = ZONE_COLORS[zone.zone_type] || "#ff0000";
-
             const relaxed = isZoneRelaxed(zone, currentTime);
 
             if (mode === "edit") {
-                ctx.globalAlpha = zone.id === editingZoneId ? 1.0 : 0.4;
-                ctx.lineWidth = zone.id === editingZoneId ? 4 : 2;
+                if (isRedrawing) {
+                    ctx.globalAlpha = 0.25;
+                    ctx.lineWidth = 1;
+                } else {
+                    ctx.globalAlpha = zone.id === editingZoneId ? 1.0 : 0.4;
+                    ctx.lineWidth   = zone.id === editingZoneId ? 4   : 2;
+                }
             } else {
                 ctx.globalAlpha = relaxed ? 0.35 : 1.0;
-                ctx.lineWidth = relaxed ? 1 : 2;
+                ctx.lineWidth   = relaxed ? 1    : 2;
             }
 
-            ctx.setLineDash(relaxed ? [6, 4] : []);
+            ctx.setLineDash(relaxed && mode !== "edit" ? [6, 4] : []);
 
             ctx.beginPath();
             ctx.moveTo(zone.points[0][0] * width, zone.points[0][1] * height);
@@ -102,7 +96,6 @@ export default function CameraTile({
             if (zone.points.length > 2) ctx.closePath();
             ctx.strokeStyle = color;
             ctx.stroke();
-
             ctx.setLineDash([]);
 
             zone.points.forEach(([relX, relY]) => {
@@ -112,9 +105,10 @@ export default function CameraTile({
                 ctx.fill();
             });
 
-            if (isZoneMenuOpen) {
+            if (isZoneMenuOpen && !isRedrawing) {
                 const absPoints = zone.points.map(([rx, ry]) => [rx * width, ry * height]);
                 const center = getCenterOfPolygon(absPoints);
+                ctx.globalAlpha = mode === "edit" && zone.id !== editingZoneId ? 0.4 : 1.0;
                 ctx.font = "bold 16px sans-serif";
                 ctx.fillStyle = "white";
                 ctx.textAlign = "center";
@@ -131,6 +125,7 @@ export default function CameraTile({
         });
 
         ctx.globalAlpha = 1.0;
+        ctx.setLineDash([]);
 
         if (currentDrawingPoints && currentDrawingPoints.length > 0) {
             ctx.beginPath();
@@ -138,20 +133,21 @@ export default function CameraTile({
             for (let i = 1; i < currentDrawingPoints.length; i++) {
                 ctx.lineTo(currentDrawingPoints[i][0], currentDrawingPoints[i][1]);
             }
-            ctx.strokeStyle = "red";
+            ctx.strokeStyle = "#ff0000";
             ctx.lineWidth = 2;
             ctx.stroke();
+
             currentDrawingPoints.forEach(([x, y]) => {
                 ctx.beginPath();
                 ctx.arc(x, y, 5, 0, Math.PI * 2);
-                ctx.fillStyle = "red";
+                ctx.fillStyle = "#ff0000";
                 ctx.fill();
             });
         }
-    }, [zones, isZoneMenuOpen, currentDrawingPoints, mode, editingZoneId, canvasSize, currentTime]);
+    }, [zones, isZoneMenuOpen, currentDrawingPoints, mode, editingZoneId, canvasSize, currentTime, isRedrawing]);
 
     const handleClick = (e) => {
-        if (mode !== "draw") return;
+        if (mode !== "draw" && !(mode === "edit" && isRedrawing)) return;
         const rect = canvasRef.current.getBoundingClientRect();
         onPointAdd([e.clientX - rect.left, e.clientY - rect.top]);
     };
@@ -171,10 +167,7 @@ export default function CameraTile({
                     <video
                         ref={mediaRef}
                         src={camera.src}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
+                        autoPlay loop muted playsInline
                         controls={false}
                         disablePictureInPicture
                         controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
@@ -183,7 +176,11 @@ export default function CameraTile({
                 <canvas
                     ref={canvasRef}
                     onClick={handleClick}
-                    style={{ pointerEvents: mode === "draw" ? "auto" : "none" }}
+                    style={{
+                        pointerEvents: (mode === "draw" || (mode === "edit" && isRedrawing))
+                            ? "auto"
+                            : "none"
+                    }}
                 />
             </div>
         </div>
