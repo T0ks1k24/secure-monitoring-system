@@ -464,6 +464,39 @@
     }
 }
 
+.redraw-wrap {
+    margin-bottom: 4px;
+}
+
+.redraw-drawing {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.redraw-hint {
+    font-size: 11px;
+    color: #f59e0b;
+    padding: 4px 0;
+}
+
+.redraw-cancel-btn {
+    background: none;
+    border: 1px solid #475569;
+    color: #94a3b8;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    width: 100%;
+    transition: all 0.2s;
+
+    &:hover {
+        border-color: #ef4444;
+        color: #f87171;
+    }
+}
+
 .events-block {
   margin-top: 16px;
   display: flex;

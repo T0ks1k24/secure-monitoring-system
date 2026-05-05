@@ -55,13 +55,20 @@ function ConnectionSettings() {
   const [mediaUrl, setMediaUrl] = useState(
     localStorage.getItem("media_url") || import.meta.env.VITE_MEDIA_MTX_WEBRTC_URL || "http://localhost:8889"
   );
+  const [frameApiUrl, setFrameApiUrl] = useState(
+    localStorage.getItem("frame_api_url") || import.meta.env.VITE_FRAME_API_URL || "http://localhost:8100"
+  );
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
     localStorage.setItem("api_url", apiUrl);
     localStorage.setItem("media_url", mediaUrl);
+    localStorage.setItem("frame_api_url", frameApiUrl);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => {
+      setSaved(false);
+      window.location.reload();
+    }, 1000);
   };
 
   return (
@@ -74,6 +81,10 @@ function ConnectionSettings() {
       <div className="setting-row">
         <label>URL MediaMTX (WebRTC)</label>
         <input value={mediaUrl} onChange={e => setMediaUrl(e.target.value)} placeholder="http://localhost:8889" />
+      </div>
+      <div className="setting-row">
+        <label>Frame Extractor URL</label>
+        <input value={frameApiUrl} onChange={e => setFrameApiUrl(e.target.value)} placeholder="http://localhost:8100" />
       </div>
       <button className="save-btn" onClick={handleSave}>
         {saved ? "✓ Saved" : "Save"}

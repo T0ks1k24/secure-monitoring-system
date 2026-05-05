@@ -381,18 +381,36 @@ export default function Monitoring() {
                                             onChange={e => setZoneForm({ ...zoneForm, max_people_allowed: e.target.value })} />
                                     </div>
 
-                                    {mode === "edit" && (
-                                        <button
-                                            type="button"
-                                            className="redraw-btn"
-                                            onClick={() => {
-                                                setIsRedrawing(true);
-                                                setCurrentZone([]);
-                                            }}
-                                        >
-                                            {isRedrawing ? "✎ Drawing new polygon..." : "↺ Redraw zone polygon"}
-                                        </button>
-                                    )}
+                                        {mode === "edit" && (
+                                            <div className="redraw-wrap">
+                                                {!isRedrawing ? (
+                                                    <button
+                                                        type="button"
+                                                        className="redraw-btn"
+                                                        onClick={() => {
+                                                            setIsRedrawing(true);
+                                                            setCurrentZone([]);
+                                                        }}
+                                                    >
+                                                        ↺ Redraw zone polygon
+                                                    </button>
+                                                ) : (
+                                                    <div className="redraw-drawing">
+                                                        <span className="redraw-hint">✎ Drawing new polygon...</span>
+                                                        <button
+                                                            type="button"
+                                                            className="redraw-cancel-btn"
+                                                            onClick={() => {
+                                                                setIsRedrawing(false);
+                                                                setCurrentZone([]);
+                                                            }}
+                                                        >
+                                                            ✕ Cancel redraw
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
                                     <button type="button" className="advanced-toggle"
                                         onClick={() => setZoneForm({ ...zoneForm, _showAdvanced: !zoneForm._showAdvanced })}>
