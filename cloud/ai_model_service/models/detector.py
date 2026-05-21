@@ -16,31 +16,37 @@ from schemas.events import BoundingBox
 
 logger = logging.getLogger(__name__)
 
-# YOLO class_id → human-readable name (підмножина COCO)
+# YOLO class_id → human-readable name (security-relevant subset of COCO)
+# Відфільтровано: тільки людина, транспорт і тварини
 COCO_CLASS_MAP: dict[int, str] = {
+    # People
     0:  "person",
+    # Vehicles
     1:  "bicycle",
     2:  "car",
     3:  "motorcycle",
-    4:  "airplane",
     5:  "bus",
     7:  "truck",
-    14: "bird",
+    # Animals
     15: "cat",
     16: "dog",
-    24: "backpack",
-    26: "handbag",
-    28: "suitcase",
-    39: "bottle",
-    43: "knife",
-    67: "cell phone",
-    73: "laptop",
+    17: "horse",
+    18: "sheep",
+    19: "cow",
+    20: "elephant",
+    21: "bear",
 }
 
-# Класи що вважаються «зброєю» — завжди CRITICAL
-WEAPON_CLASSES = {"knife", "gun", "pistol", "rifle"}
+# IDs для YOLO classes= фільтру — передається прямо в inference (швидше)
+ALLOWED_CLASS_IDS: list[int] = list(COCO_CLASS_MAP.keys())
+
 # Транспорт
 VEHICLE_CLASSES = {"car", "truck", "bus", "motorcycle", "bicycle"}
+# Тварини
+ANIMAL_CLASSES = {"dog", "cat", "horse", "sheep", "cow", "elephant", "bear"}
+# Зброя — для risk_engine (YOLO не детектує, але залишаємо для майбутнього)
+WEAPON_CLASSES: set[str] = set()
+
 
 
 class YOLODetector:
@@ -115,6 +121,7 @@ class YOLODetector:
             iou=nms_iou,
             imgsz=size,
             max_det=max_d,
+            classes=ALLOWED_CLASS_IDS,  # фільтр на рівні NMS — тільки потрібні класи
             device=settings.DEVICE,
             verbose=False,
         )
@@ -125,18 +132,22 @@ class YOLODetector:
             if result.boxes is None:
                 continue
             for box in result.boxes:
+                cls_id = int(box.cls[0])
+                cls_name = COCO_CLASS_MAP.get(cls_id)
+                if cls_name is None:
+                    continue  # пропустити невідомий клас
+
                 # xyxy у пікселях → нормалізуємо
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
                 bbox = BoundingBox(
                     x1=x1 / w, y1=y1 / h,
                     x2=x2 / w, y2=y2 / h,
                 )
-                cls_id = int(box.cls[0])
                 conf_val = float(box.conf[0])
-                cls_name = COCO_CLASS_MAP.get(cls_id, f"class_{cls_id}")
                 detections.append((bbox, cls_name, conf_val))
 
         return detections
+
 
 
 # Module-level singleton

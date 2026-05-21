@@ -9,9 +9,16 @@ services:
     ports:
       - "8100:8100"
     environment:
-      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai_model_service:5000/api/v1/detect}
+      # URL of the AI service - set to your cloud server IP/domain in .env
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://localhost:5000/api/v1/detect}
     networks:
       - security_local_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   frontend:
     build:
@@ -27,6 +34,7 @@ services:
     ports:
       - "80:80"
     environment:
+      # URL of the backend - set to your cloud server IP/domain in .env
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
       VITE_FRAME_API_URL: ${VITE_FRAME_API_URL:-http://localhost:8100}
       VITE_MEDIA_MTX_HLS_URL: ${VITE_MEDIA_MTX_HLS_URL:-http://localhost:8888}

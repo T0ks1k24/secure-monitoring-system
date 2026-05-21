@@ -10,3 +10,4 @@ wheels/
 .venv
 mediamtx
 frames/
+storage

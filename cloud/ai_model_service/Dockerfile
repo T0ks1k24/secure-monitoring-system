@@ -28,4 +28,4 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 5000
 
-CMD ["uv", "run", "python", "main.py"]
+CMD ["uv", "run", "--no-sync", "python", "main.py"]

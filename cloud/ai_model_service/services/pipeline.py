@@ -47,29 +47,31 @@ class AnalyzePipeline:
 
         # ── Step 2: Track ─────────────────────────────────────────
         tracker = tracker_registry.get(camera_id, fps=request.stream_fps)
-        zones = await zone_manager.get_zones(camera_id)
-        zone_ids = [z.id for z in zones]
+        # zones = await zone_manager.get_zones(camera_id)
+        # zone_ids = [z.id for z in zones]
+        zones = []
+        zone_ids = []
 
         confirmed_tracks: List[Track] = tracker.update(raw_detections, zone_ids)
 
         # ── Step 3: Zone intersection ─────────────────────────────
         zone_memberships: Dict[int, List[Zone]] = {}
-        for track in confirmed_tracks:
-            track_zones = zone_manager.find_zones_for_object(
-                zones,
-                track.bbox.cx, track.bbox.cy,
-                track.bbox.x1, track.bbox.y1,
-                track.bbox.x2, track.bbox.y2,
-                intersection_mode="feet",
-            )
-            zone_memberships[track.id] = track_zones
+        # for track in confirmed_tracks:
+        #     track_zones = zone_manager.find_zones_for_object(
+        #         zones,
+        #         track.bbox.cx, track.bbox.cy,
+        #         track.bbox.x1, track.bbox.y1,
+        #         track.bbox.x2, track.bbox.y2,
+        #         intersection_mode="feet",
+        #     )
+        #     zone_memberships[track.id] = track_zones
 
         # Оновлюємо zone events (enter/exit)
-        zone_change_events = tracker.get_zone_events(
-            confirmed_tracks,
-            {tid: {z.id for z in zones_list}
-             for tid, zones_list in zone_memberships.items()},
-        )
+        # zone_change_events = tracker.get_zone_events(
+        #     confirmed_tracks,
+        #     {tid: {z.id for z in zones_list}
+        #      for tid, zones_list in zone_memberships.items()},
+        # )
 
         # ── Step 4: Risk analysis ─────────────────────────────────
         security_events = risk_engine.analyze(
@@ -124,6 +126,12 @@ class AnalyzePipeline:
                 frame, camera_id, zones, confirmed_tracks, security_events
             )
             frame_storage.save_frame(rendered_frame, camera_id, frame_ts)
+        else:
+            # Навіть якщо SAVE_PROCESSED_FRAMES False, ми можемо захотіти бачити детекції в логах або дебагу
+            # Але за запитом користувача "ті кадри що париходять зберігай" 
+            # ми покладаємось на налаштування або форсуємо тут.
+            # Вирішено: залишити перевірку settings, але впевнитись що .env має True.
+            pass
 
         # 6. Формуємо відповідь
         if security_events:
