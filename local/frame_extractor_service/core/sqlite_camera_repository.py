@@ -13,7 +13,10 @@ class SQLiteCameraRepository(ICameraRepository):
     """Repository for persisting camera configurations to SQLite."""
 
     def __init__(self, db_url: str):
-        self.engine = create_engine(db_url)
+        # check_same_thread=False is required for SQLite when accessed from
+        # multiple threads (FastAPI thread pool + async event loop workers).
+        connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
+        self.engine = create_engine(db_url, connect_args=connect_args)
         Base.metadata.create_all(self.engine)
         self.session_local = sessionmaker(bind=self.engine)
 

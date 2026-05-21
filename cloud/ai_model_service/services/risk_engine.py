@@ -160,8 +160,12 @@ class EventDeduplicator:
     }
     DEFAULT_COOLDOWN = 10.0
 
+    # How often (in calls) to perform expired-entry cleanup
+    _CLEANUP_INTERVAL = 500
+
     def __init__(self) -> None:
         self._last_fired: Dict[tuple, float] = {}
+        self._call_count: int = 0
 
     def should_fire(
         self,
@@ -173,10 +177,22 @@ class EventDeduplicator:
         key = (camera_id, event_type, track_id, zone_id)
         last = self._last_fired.get(key, 0.0)
         cooldown = self.COOLDOWN.get(event_type, self.DEFAULT_COOLDOWN)
-        if (time.monotonic() - last) >= cooldown:
-            self._last_fired[key] = time.monotonic()
+        now = time.monotonic()
+        if (now - last) >= cooldown:
+            self._last_fired[key] = now
+            self._call_count += 1
+            if self._call_count >= self._CLEANUP_INTERVAL:
+                self._evict_expired(now)
+                self._call_count = 0
             return True
         return False
+
+    def _evict_expired(self, now: float) -> None:
+        """Remove entries whose cooldown has already elapsed — they serve no purpose."""
+        max_cooldown = max(self.COOLDOWN.values(), default=self.DEFAULT_COOLDOWN)
+        expired = [k for k, t in self._last_fired.items() if (now - t) > max_cooldown]
+        for k in expired:
+            del self._last_fired[k]
 
     def clear_camera(self, camera_id: str) -> None:
         to_del = [k for k in self._last_fired if k[0] == camera_id]

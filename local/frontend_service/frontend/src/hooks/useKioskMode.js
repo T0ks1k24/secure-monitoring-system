@@ -15,11 +15,12 @@ export function useKioskMode() {
 
     useEffect(() => {
         if (!window.windowAPI?.onKioskChange) return;
-        window.windowAPI.onKioskChange((val) => {
+        const cleanup = window.windowAPI.onKioskChange((val) => {
             setIsKiosk(val);
             document.body.classList.toggle("kiosk-mode", val);
         });
-        return () => {};
+        // Remove IPC listener on unmount to prevent memory leak
+        return () => { if (typeof cleanup === "function") cleanup(); };
     }, []);
 
     useEffect(() => {

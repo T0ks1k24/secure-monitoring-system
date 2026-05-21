@@ -76,6 +76,36 @@ services:
     networks:
       - security_net
 
+  camera_publisher_cam3:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    container_name: camera_publisher_cam3
+    restart: unless-stopped
+    depends_on:
+      - mediamtx
+    command:
+      - -re
+      - -stream_loop
+      - "-1"
+      - -i
+      - /videos/cam3.mp4
+      - -c:v
+      - libx264
+      - -preset
+      - ultrafast
+      - -tune
+      - zerolatency
+      - -pix_fmt
+      - yuv420p
+      - -f
+      - rtsp
+      - -rtsp_transport
+      - tcp
+      - rtsp://mediamtx:8554/camera3
+    volumes:
+      - ./video:/videos:ro
+    networks:
+      - security_net
+
   postgres:
     image: postgres:16
     container_name: postgres_service
@@ -177,6 +207,7 @@ services:
       ai_service:
         condition: service_healthy
       mediamtx:
+        condition: service_started
     volumes:
       - ./local/frame_extractor_service:/app
     ports:

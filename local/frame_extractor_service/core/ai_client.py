@@ -61,5 +61,7 @@ class AIClient:
             logger.error("[%s] AI service HTTP %d", camera_id, exc.response.status_code)
         except httpx.RequestError as exc:
             logger.error("[%s] AI service connection error: %s", camera_id, exc)
+        except Exception as exc:
+            logger.error("[%s] Unexpected error sending frame: %s", camera_id, exc)
 
         return None

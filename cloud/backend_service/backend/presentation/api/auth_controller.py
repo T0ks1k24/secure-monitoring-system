@@ -160,9 +160,11 @@ def refresh(
         )
 
         if payload.get("type") != "refresh":
-            raise HTTPException(status_code=401, detail="Wrong token")
+            raise HTTPException(status_code=401, detail="Wrong token type")
 
         user = service.user_repo.get_by_id(payload["sub"])
+        if user is None:
+            raise HTTPException(status_code=401, detail="User not found")
 
         new_access = create_access_token(
             user_id=str(user.id),
@@ -171,5 +173,7 @@ def refresh(
 
         return {"access_token": new_access}
 
-    except:
+    except HTTPException:
+        raise
+    except Exception:
         raise HTTPException(status_code=401, detail="Invalid refresh token")

@@ -12,17 +12,6 @@ const getGridLayout = (count) => {
     return { cols: 3, rows: 3 };
 };
 
-const loadSlotConfig = (count) => {
-    try {
-        const saved = getItem("slot_config");
-        if (!saved) return Array(count).fill(null);
-        const parsed = JSON.parse(saved);
-        const result = Array(count).fill(null);
-        parsed.forEach((id, i) => { if (i < count) result[i] = id; });
-        return result;
-    } catch { return Array(count).fill(null); }
-};
-
 const saveSlotConfig = async (config) => {
     await setItem("slot_config", JSON.stringify(config));
 };

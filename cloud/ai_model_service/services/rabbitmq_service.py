@@ -69,9 +69,9 @@ class RabbitMQService:
     async def _do_connect(self) -> None:
         try:
             import aio_pika
-        except ImportError:
+        except ImportError as exc:
             logger.error("aio_pika not installed: pip install aio_pika")
-            return
+            raise RuntimeError("aio_pika is required but not installed") from exc
 
         self._connection = await aio_pika.connect_robust(
             settings.RABBITMQ_URL,
