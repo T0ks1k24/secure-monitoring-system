@@ -14,5 +14,3 @@ storage
 .claude
 .pytest_cache
 
-# Large video files — keep locally only, do not commit to repo
-video/*.mp4

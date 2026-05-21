@@ -60,7 +60,10 @@ export function useEventStream() {
             };
         };
 
-        fetch(`${API_BASE_URL}/events/`)
+        const token = localStorage.getItem("accessToken");
+        fetch(`${API_BASE_URL}/events/`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
             .then(r => r.ok ? r.json() : [])
             .then(data => {
                 if (!Array.isArray(data)) return;
