@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     # AI service
     AI_SERVICE_URL: str = "http://localhost:5000/api/v1/detect"
-    AI_REQUEST_TIMEOUT: int = 5
+    AI_REQUEST_TIMEOUT: int = 15
 
     # Default for new cameras
     DEFAULT_FPS: float = 2.0

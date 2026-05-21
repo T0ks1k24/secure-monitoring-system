@@ -1,48 +1,216 @@
-version: "3.9"
+# ================================================================
+# ЛОКАЛЬНИЙ СТЕК  (Local / Edge Tier)
+# ================================================================
+# Містить: MediaMTX (локальний RTSP-хаб) · FFmpeg-демо ·
+#          Frame Extractor · Frontend (nginx)
+#
+# Вимагає: запущеного хмарного стеку (docker-compose.cloud.yml)
+#           або окремого хмарного сервера.
+#
+# Запуск:     docker compose -f docker-compose.local.yml up -d
+# Зупинка:    docker compose -f docker-compose.local.yml down
+# Логи:       docker compose -f docker-compose.local.yml logs -f
+# Перебудова: docker compose -f docker-compose.local.yml up -d --build
+#
+# Потрібні змінні в .env:
+#   CLOUD_HOST              — IP або домен хмарного сервера
+#   AI_SERVICE_URL          — http://<CLOUD_HOST>:5000/api/v1/detect
+#   VITE_API_URL            — http://<CLOUD_HOST>:8000
+#   VITE_WS_EVENTS_URL      — ws://<CLOUD_HOST>:8000/ws/events
+#   VITE_MEDIA_MTX_HLS_URL  — http://localhost:8888  (локальний mediamtx)
+#   VITE_MEDIA_MTX_WEBRTC_URL — http://localhost:8889
+# ================================================================
 
 services:
+
+  # ── Локальний медіасервер (приймає RTSP з IP-камер) ───────────
+  # Камери публікують потік сюди, frame_extractor зчитує кадри.
+  # Frontend отримує HLS/WebRTC із цього ж вузла.
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: local_mediamtx
+    restart: unless-stopped
+    ports:
+      - "8554:8554"        # RTSP  ← IP-камери пишуть сюди
+      - "8888:8888"        # HLS   → http://localhost:8888/<path>/index.m3u8
+      - "8889:8889"        # WebRTC HTTP
+      - "8189:8189/udp"    # WebRTC UDP
+      - "1935:1935"        # RTMP
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    networks:
+      - local_net
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # ── Демо-потоки FFmpeg (тільки для тестування) ────────────────
+  # Видаліть ці сервіси, якщо підключені реальні IP-камери.
+
+  camera_publisher_cam1:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    container_name: local_camera_cam1
+    restart: on-failure
+    depends_on:
+      - mediamtx
+    entrypoint: ffmpeg
+    command:
+      - "-re"
+      - "-stream_loop"
+      - "-1"
+      - "-i"
+      - "/videos/cam1.mp4"
+      - "-c:v"
+      - "libx264"
+      - "-preset"
+      - "ultrafast"
+      - "-tune"
+      - "zerolatency"
+      - "-pix_fmt"
+      - "yuv420p"
+      - "-f"
+      - "rtsp"
+      - "-rtsp_transport"
+      - "tcp"
+      - "rtsp://mediamtx:8554/camera1"
+    volumes:
+      - ./video:/videos:ro
+    networks:
+      - local_net
+
+  camera_publisher_cam2:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    container_name: local_camera_cam2
+    restart: on-failure
+    depends_on:
+      - mediamtx
+    entrypoint: ffmpeg
+    command:
+      - "-re"
+      - "-stream_loop"
+      - "-1"
+      - "-i"
+      - "/videos/cam2.mp4"
+      - "-c:v"
+      - "libx264"
+      - "-preset"
+      - "ultrafast"
+      - "-tune"
+      - "zerolatency"
+      - "-pix_fmt"
+      - "yuv420p"
+      - "-f"
+      - "rtsp"
+      - "-rtsp_transport"
+      - "tcp"
+      - "rtsp://mediamtx:8554/camera2"
+    volumes:
+      - ./video:/videos:ro
+    networks:
+      - local_net
+
+  camera_publisher_cam3:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    container_name: local_camera_cam3
+    restart: on-failure
+    depends_on:
+      - mediamtx
+    entrypoint: ffmpeg
+    command:
+      - "-re"
+      - "-stream_loop"
+      - "-1"
+      - "-i"
+      - "/videos/cam3.mp4"
+      - "-c:v"
+      - "libx264"
+      - "-preset"
+      - "ultrafast"
+      - "-tune"
+      - "zerolatency"
+      - "-pix_fmt"
+      - "yuv420p"
+      - "-f"
+      - "rtsp"
+      - "-rtsp_transport"
+      - "tcp"
+      - "rtsp://mediamtx:8554/camera3"
+    volumes:
+      - ./video:/videos:ro
+    networks:
+      - local_net
+
+  # ── Захоплення кадрів (читає RTSP → відправляє на хмарний AI) ─
+
   frame_extractor:
     build:
       context: ./local/frame_extractor_service
-    container_name: frame_extractor_service
+    image: secure-monitoring/frame-extractor:${APP_VERSION:-latest}
+    container_name: local_frame_extractor
     restart: unless-stopped
+    depends_on:
+      mediamtx:
+        condition: service_started
     ports:
       - "8100:8100"
     environment:
-      # URL of the AI service - set to your cloud server IP/domain in .env
+      # URL хмарного AI-сервісу; встановіть CLOUD_HOST у .env
       AI_SERVICE_URL: ${AI_SERVICE_URL:-http://localhost:5000/api/v1/detect}
+    volumes:
+      # Зберігаємо cameras.db між перезапусками контейнера
+      - frame_extractor_data:/app
     networks:
-      - security_local_net
+      - local_net
+      - security_net   # пряме з'єднання з ai_model_service
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8100/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # ── Frontend (React → nginx) ───────────────────────────────────
+  # Vite-змінні запікаються при збірці образу (ARG), тому при зміні
+  # CLOUD_HOST або URL-адрес потрібно перебудувати образ (--build).
 
   frontend:
     build:
       context: ./local/frontend_service/frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
-        VITE_FRAME_API_URL: ${VITE_FRAME_API_URL:-http://localhost:8100}
-        VITE_MEDIA_MTX_HLS_URL: ${VITE_MEDIA_MTX_HLS_URL:-http://localhost:8888}
+        VITE_API_URL:              ${VITE_API_URL:-http://localhost:8000}
+        VITE_FRAME_API_URL:        ${VITE_FRAME_API_URL:-http://localhost:8100}
+        VITE_MEDIA_MTX_HLS_URL:    ${VITE_MEDIA_MTX_HLS_URL:-http://localhost:8888}
         VITE_MEDIA_MTX_WEBRTC_URL: ${VITE_MEDIA_MTX_WEBRTC_URL:-http://localhost:8889}
-        VITE_WS_EVENTS_URL: ${VITE_WS_EVENTS_URL:-}
-    container_name: frontend_service
+        VITE_WS_EVENTS_URL:        ${VITE_WS_EVENTS_URL:-ws://localhost:8000/ws/events}
+    image: secure-monitoring/frontend:${APP_VERSION:-latest}
+    container_name: local_frontend
     restart: unless-stopped
+    depends_on:
+      frame_extractor:
+        condition: service_healthy
     ports:
-      - "80:80"
-    environment:
-      # URL of the backend - set to your cloud server IP/domain in .env
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
-      VITE_FRAME_API_URL: ${VITE_FRAME_API_URL:-http://localhost:8100}
-      VITE_MEDIA_MTX_HLS_URL: ${VITE_MEDIA_MTX_HLS_URL:-http://localhost:8888}
-      VITE_MEDIA_MTX_WEBRTC_URL: ${VITE_MEDIA_MTX_WEBRTC_URL:-http://localhost:8889}
-      VITE_WS_EVENTS_URL: ${VITE_WS_EVENTS_URL:-ws://localhost:8000/ws/events}
+      - "80:80"     # http://localhost  або  http://<local-ip>
+      - "3000:80"   # додатковий порт для зручності розробки
     networks:
-      - security_local_net
+      - local_net
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+# ── Мережа та томи ──────────────────────────────────────────────
+
+volumes:
+  frame_extractor_data:
+    name: frame_extractor_data
 
 networks:
-  security_local_net:
+  local_net:
+    name: local_net
     driver: bridge
+  security_net:
+    external: true
+    name: secure_monitoring_system_security_net

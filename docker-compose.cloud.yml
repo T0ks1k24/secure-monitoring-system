@@ -1,48 +1,192 @@
-version: "3.9"
+# ================================================================
+# ХМАРНИЙ СТЕК  (Cloud Tier)
+# ================================================================
+# Містить: PostgreSQL · RabbitMQ · MediaMTX · FFmpeg-демо · Backend · AI
+#
+# Запуск:       docker compose -f docker-compose.cloud.yml up -d
+# Зупинка:      docker compose -f docker-compose.cloud.yml down
+# Логи:         docker compose -f docker-compose.cloud.yml logs -f
+# Перебудова:   docker compose -f docker-compose.cloud.yml up -d --build
+#
+# Потрібні змінні в .env (або export):
+#   POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB
+#   RABBITMQ_USER / RABBITMQ_PASS
+#   SECRET_KEY          — JWT-ключ бекенду (змініть у продакшні!)
+#   CLOUD_HOST          — публічний IP або домен сервера (для CORS та evidence-URL)
+#   ALLOWED_ORIGINS     — дозволені CORS-джерела (за замовч. *)
+# ================================================================
 
 services:
+
+  # ── Бази даних та черги ────────────────────────────────────────
+
   postgres:
-    image: postgres:16
-    container_name: postgres_service
+    image: postgres:16-alpine
+    container_name: cloud_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_USER:     ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-security_db}
+      POSTGRES_DB:       ${POSTGRES_DB:-security_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - security_net
+      - cloud_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-security_db}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: rabbitmq_service
+    container_name: cloud_rabbitmq
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # Management UI → http://<CLOUD_HOST>:15672
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
-      - security_net
+      - cloud_net
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # ── Медіасервер (RTSP / HLS / WebRTC / RTMP) ──────────────────
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: cloud_mediamtx
+    restart: unless-stopped
+    ports:
+      - "8554:8554"        # RTSP
+      - "8888:8888"        # HLS  → http://<CLOUD_HOST>:8888/<path>/index.m3u8
+      - "8889:8889"        # WebRTC HTTP
+      - "8189:8189/udp"    # WebRTC UDP
+      - "1935:1935"        # RTMP (публікація з камер через RTMP)
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    networks:
+      - cloud_net
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # ── Демо-відеопотоки (FFmpeg → MediaMTX → RTSP) ───────────────
+  # Замінити на реальні RTSP-URI камер у продакшні.
+
+  camera_publisher_cam1:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    container_name: cloud_camera_cam1
+    restart: on-failure
+    depends_on:
+      - mediamtx
+    entrypoint: ffmpeg
+    command:
+      - "-re"
+      - "-stream_loop"
+      - "-1"
+      - "-i"
+      - "/videos/cam1.mp4"
+      - "-c:v"
+      - "libx264"
+      - "-preset"
+      - "ultrafast"
+      - "-tune"
+      - "zerolatency"
+      - "-pix_fmt"
+      - "yuv420p"
+      - "-f"
+      - "rtsp"
+      - "-rtsp_transport"
+      - "tcp"
+      - "rtsp://mediamtx:8554/camera1"
+    volumes:
+      - ./video:/videos:ro
+    networks:
+      - cloud_net
+
+  camera_publisher_cam2:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    container_name: cloud_camera_cam2
+    restart: on-failure
+    depends_on:
+      - mediamtx
+    entrypoint: ffmpeg
+    command:
+      - "-re"
+      - "-stream_loop"
+      - "-1"
+      - "-i"
+      - "/videos/cam2.mp4"
+      - "-c:v"
+      - "libx264"
+      - "-preset"
+      - "ultrafast"
+      - "-tune"
+      - "zerolatency"
+      - "-pix_fmt"
+      - "yuv420p"
+      - "-f"
+      - "rtsp"
+      - "-rtsp_transport"
+      - "tcp"
+      - "rtsp://mediamtx:8554/camera2"
+    volumes:
+      - ./video:/videos:ro
+    networks:
+      - cloud_net
+
+  camera_publisher_cam3:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    container_name: cloud_camera_cam3
+    restart: on-failure
+    depends_on:
+      - mediamtx
+    entrypoint: ffmpeg
+    command:
+      - "-re"
+      - "-stream_loop"
+      - "-1"
+      - "-i"
+      - "/videos/cam3.mp4"
+      - "-c:v"
+      - "libx264"
+      - "-preset"
+      - "ultrafast"
+      - "-tune"
+      - "zerolatency"
+      - "-pix_fmt"
+      - "yuv420p"
+      - "-f"
+      - "rtsp"
+      - "-rtsp_transport"
+      - "tcp"
+      - "rtsp://mediamtx:8554/camera3"
+    volumes:
+      - ./video:/videos:ro
+    networks:
+      - cloud_net
+
+  # ── Бекенд API ─────────────────────────────────────────────────
 
   backend:
     build:
       context: ./cloud/backend_service/backend
-    container_name: backend_service
+    image: secure-monitoring/backend:${APP_VERSION:-latest}
+    container_name: cloud_backend
     restart: unless-stopped
     depends_on:
       postgres:
@@ -52,21 +196,29 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-security_db}
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+      DATABASE_URL:    postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-security_db}
+      RABBITMQ_URL:    amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+      SECRET_KEY:      ${SECRET_KEY:-super-secret-change-me}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
     networks:
-      - security_net
+      - cloud_net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 15s
+      retries: 10
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+  # ── AI / Детекція об'єктів (YOLOv8 + OpenVINO) ────────────────
 
   ai_service:
     build:
       context: ./cloud/ai_model_service
-    container_name: ai_model_service
+    image: secure-monitoring/ai-service:${APP_VERSION:-latest}
+    container_name: cloud_ai_service
     restart: unless-stopped
     depends_on:
       rabbitmq:
@@ -76,21 +228,32 @@ services:
     ports:
       - "5000:5000"
     environment:
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
-      BACKEND_API_URL: http://backend:8000
+      RABBITMQ_URL:             amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+      BACKEND_API_URL:          http://backend:8000
+      EVIDENCE_PUBLIC_BASE_URL: http://${CLOUD_HOST:-localhost}:5000
     networks:
-      - security_net
+      - cloud_net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/health"]
-      interval: 10s
-      timeout: 5s
+      interval: 15s
+      timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 90s   # YOLO-модель завантажується ~60 с
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+# ── Томи ────────────────────────────────────────────────────────
 
 volumes:
   postgres_data:
+    name: cloud_postgres_data
   rabbitmq_data:
+    name: cloud_rabbitmq_data
+
+# ── Мережа ──────────────────────────────────────────────────────
 
 networks:
-  security_net:
+  cloud_net:
+    name: cloud_net
     driver: bridge

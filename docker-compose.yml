@@ -188,6 +188,7 @@ services:
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
       BACKEND_API_URL: http://backend:8000
       EVIDENCE_PUBLIC_BASE_URL: http://localhost:5000
+      ZONE_CACHE_TTL: "10"
     networks:
       - security_net
     healthcheck:

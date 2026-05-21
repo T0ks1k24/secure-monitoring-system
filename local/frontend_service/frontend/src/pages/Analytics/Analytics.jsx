@@ -46,7 +46,11 @@ function RiskGauge({ events }) {
 function EventsByRisk({ events }) {
     const data = useMemo(() => {
         const counts = { critical: 0, high: 0, medium: 0, low: 0 };
-        events.forEach(e => { if (counts[e.risk_level] !== undefined) counts[e.risk_level]++; });
+        events.forEach(e => {
+            // Нормалізуємо до lowercase на випадок якщо прийшло "CRITICAL" з backend
+            const key = (e.risk_level || "").toLowerCase();
+            if (counts[key] !== undefined) counts[key]++;
+        });
         return RISK_ORDER.map(r => ({ name: r.toUpperCase(), count: counts[r], color: RISK_COLORS[r] }));
     }, [events]);
 

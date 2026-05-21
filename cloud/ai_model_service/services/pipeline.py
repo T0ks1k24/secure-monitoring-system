@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Dict, List, Optional
@@ -25,6 +26,9 @@ from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+# Семафор: YOLO на CPU однопотокова — запускаємо по одному, але без блокування event loop
+_yolo_sem = asyncio.Semaphore(1)
+
 
 class AnalyzePipeline:
     """
@@ -41,8 +45,9 @@ class AnalyzePipeline:
         frame_ts = request.frame_timestamp or time.time()
         camera_id = request.camera_id
 
-        # ── Step 1: YOLO detect ───────────────────────────────────
-        raw_detections = detector.detect(frame)
+        # ── Step 1: YOLO detect (в окремому потоці, щоб не блокувати event loop) ──
+        async with _yolo_sem:
+            raw_detections = await asyncio.to_thread(detector.detect, frame)
         # raw_detections: List[(BoundingBox, class_name, confidence)]
 
         # ── Step 2: Track ─────────────────────────────────────────
@@ -63,6 +68,7 @@ class AnalyzePipeline:
                 intersection_mode="feet",
             )
             zone_memberships[track.id] = track_zones
+
 
         # ── Step 4: Risk analysis ─────────────────────────────────
         security_events = risk_engine.analyze(

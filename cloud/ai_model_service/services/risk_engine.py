@@ -150,15 +150,15 @@ class EventDeduplicator:
     Ключ: (camera_id, event_type, track_id, zone_id)
     """
     COOLDOWN: Dict[EventType, float] = {
-        EventType.ZONE_INTRUSION:      10.0,
-        EventType.WEAPON_DETECTED:      5.0,
-        EventType.RUNNING_DETECTED:    15.0,
-        EventType.ZONE_LOITERING:      30.0,
-        EventType.ZONE_CROWDING:       20.0,
-        EventType.DIRECTION_VIOLATION: 15.0,
-        EventType.ABANDONED_OBJECT:    60.0,
+        EventType.ZONE_INTRUSION:       3.0,
+        EventType.WEAPON_DETECTED:      2.0,
+        EventType.RUNNING_DETECTED:     5.0,
+        EventType.ZONE_LOITERING:      15.0,
+        EventType.ZONE_CROWDING:        8.0,
+        EventType.DIRECTION_VIOLATION:  5.0,
+        EventType.ABANDONED_OBJECT:    30.0,
     }
-    DEFAULT_COOLDOWN = 10.0
+    DEFAULT_COOLDOWN = 3.0
 
     # How often (in calls) to perform expired-entry cleanup
     _CLEANUP_INTERVAL = 500
@@ -398,13 +398,22 @@ class RiskEngine:
     ) -> List[SecurityEvent]:
         events = []
         for zone in zones:
+            # Безпечна зона — ніяких тривог за присутність/вторгнення
+            if zone.zone_type == ZoneType.SAFE_ZONE:
+                continue
             rules = _get_effective_rules(zone)
             for rule in rules:
-                if rule.object_class != "*" and rule.object_class != track.obj_class:
-                    if rule.object_class == "vehicle" and track.obj_class not in VEHICLE_CLASSES:
+                # Перевірка відповідності класу об'єкта правилу:
+                # "*"      → будь-який клас
+                # "vehicle" → будь-який з VEHICLE_CLASSES
+                # інше     → точна відповідність
+                if rule.object_class == "*":
+                    pass  # завжди підходить
+                elif rule.object_class == "vehicle":
+                    if track.obj_class not in VEHICLE_CLASSES:
                         continue
-                    elif rule.object_class != "vehicle":
-                        continue
+                elif rule.object_class != track.obj_class:
+                    continue
 
                 dwell = track.get_dwell_seconds(zone.id)
                 if dwell < rule.trigger_after_seconds:
@@ -455,7 +464,7 @@ class RiskEngine:
                     metadata=meta,
                 ))
 
-            # Loitering
+            # Loitering — safe_zone вже пропущена вище через continue
             if zone.max_dwell_seconds:
                 dwell = track.get_dwell_seconds(zone.id)
                 if dwell >= zone.max_dwell_seconds:

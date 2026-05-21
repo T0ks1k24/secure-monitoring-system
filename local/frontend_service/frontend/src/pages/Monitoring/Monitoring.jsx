@@ -116,7 +116,7 @@ export default function Monitoring() {
 
     const [zoneForm, setZoneForm] = useState({
         name: "",
-        zone_type: "danger",
+        zone_type: "restricted",
         risk_weight: "",
         max_people_allowed: "",
         base_mode: "STRICT",
@@ -145,7 +145,7 @@ export default function Monitoring() {
         setIsRedrawing(false);
         setZoneForm({
             name: "",
-            zone_type: "danger",
+            zone_type: "restricted",
             risk_weight: "",
             max_people_allowed: "",
             base_mode: "STRICT",
@@ -170,8 +170,11 @@ export default function Monitoring() {
         const { width, height } = canvas;
 
         const pointsToSave = (isEdit && !isRedrawing)
-            ? activeZones.find(z => z.id === editingZoneId)?.points
+            ? (activeZones.find(z => z.id === editingZoneId)?.points ?? [])
             : currentZone.map(([x, y]) => [x / width, y / height]);
+
+        // Якщо у edit-режимі без перемальовування полігон порожній — захист
+        if (!pointsToSave || pointsToSave.length < 3) return;
 
         const payload = {
             name: zoneForm.name || `Zone ${activeZones.length + 1}`,
@@ -358,7 +361,12 @@ export default function Monitoring() {
 
                                     <div className="zone-field">
                                         <label>Zone type <InfoIcon text="Zone behavior type." /></label>
-                                        <select value={zoneForm.zone_type} onChange={e => setZoneForm({ ...zoneForm, zone_type: e.target.value })}>
+                                        <select value={zoneForm.zone_type} onChange={e => {
+                                            const newType = e.target.value;
+                                            // safe_zone → RELAXED, всі інші → STRICT
+                                            const newBaseMode = newType === "safe_zone" ? "RELAXED" : "STRICT";
+                                            setZoneForm({ ...zoneForm, zone_type: newType, base_mode: newBaseMode });
+                                        }}>
                                             <option value="restricted">Danger (restricted)</option>
                                             <option value="perimeter">Warning (perimeter)</option>
                                             <option value="safe_zone">Safe (safe zone)</option>

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 
@@ -48,10 +49,16 @@ class EventConsumer:
 
     async def _handle_message(self, message: aio_pika.IncomingMessage) -> None:
         async with message.process():
-            data = json.loads(message.body)
-            dto = AIEventDTO(**data)
-            stored_event = self._event_service.ingest_ai_event(dto)
-            await ws_manager.broadcast(self._to_payload(stored_event))
+            try:
+                data = json.loads(message.body)
+                dto = AIEventDTO(**data)
+                stored_event = await asyncio.to_thread(
+                    self._event_service.ingest_ai_event, dto
+                )
+                await ws_manager.broadcast(self._to_payload(stored_event))
+                logger.debug("Event broadcast: %s camera=%s", stored_event.id, stored_event.camera_id)
+            except Exception:
+                logger.exception("Failed to process RabbitMQ event message")
 
     @staticmethod
     def _to_payload(event) -> dict:

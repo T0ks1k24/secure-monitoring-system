@@ -25,6 +25,40 @@ function normalizeEvent(raw) {
     };
 }
 
+async function fetchEventsWithAuth() {
+    let token = localStorage.getItem("accessToken");
+
+    const makeRequest = (t) => fetch(`${API_BASE_URL}/events/`, {
+        headers: t ? { Authorization: `Bearer ${t}` } : {},
+    });
+
+    let response = await makeRequest(token);
+
+    // Токен протік — спробуємо оновити через refresh
+    if (response.status === 401) {
+        const refreshToken = localStorage.getItem("refreshToken");
+        if (refreshToken) {
+            try {
+                const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ refresh_token: refreshToken }),
+                });
+                if (refreshRes.ok) {
+                    const data = await refreshRes.json();
+                    if (data.access_token) {
+                        localStorage.setItem("accessToken", data.access_token);
+                        token = data.access_token;
+                        response = await makeRequest(token);
+                    }
+                }
+            } catch { /* ігноруємо помилки refresh */ }
+        }
+    }
+
+    return response.ok ? response.json() : [];
+}
+
 export function useEventStream() {
     const [events, setEvents] = useState([]);
     const [status, setStatus] = useState("connecting");
@@ -60,11 +94,7 @@ export function useEventStream() {
             };
         };
 
-        const token = localStorage.getItem("accessToken");
-        fetch(`${API_BASE_URL}/events/`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
-            .then(r => r.ok ? r.json() : [])
+        fetchEventsWithAuth()
             .then(data => {
                 if (!Array.isArray(data)) return;
                 const prepared = data.map(normalizeEvent).filter(Boolean)

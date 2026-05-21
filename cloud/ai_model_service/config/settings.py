@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # Максимум детекцій за кадр
     MAX_DETECTIONS: int = 50
     # Input розмір YOLO. 320=швидко/грубо, 640=баланс, 1280=повільно/точно
-    INFERENCE_IMG_SIZE: int = 640
+    INFERENCE_IMG_SIZE: int = 320
     # Пристрій: "cpu", "cuda", "mps"
     DEVICE: str = "cpu"
 
