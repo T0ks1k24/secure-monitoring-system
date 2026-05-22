@@ -4,6 +4,7 @@ import { useGetCamerasQuery } from "../../services/camerasApi";
 import { getItem } from "../../utils/windowStorage";
 import { useEventStream } from "../../hooks/useEventStream";
 import { useKioskMode } from "../../hooks/useKioskMode";
+import { useWebRTCPreload } from "../../context/WebRTCPreloadContext";
 import "./CamerasGrid.scss";
 
 const WEBRTC_BASE = (import.meta.env.VITE_MEDIA_MTX_WEBRTC_URL || "http://localhost:8889").replace(/\/+$/, "");
@@ -30,6 +31,31 @@ const RISK_CONFIG = {
     medium:   { color: "#eab308", label: "MEDIUM" },
     low:      { color: "#22c55e", label: "LOW" },
 };
+
+/**
+ * Замінник iframe-елемента в сітці камер.
+ * Повідомляє WebRTCPreloadProvider про своє DOM-місце — provider
+ * позиціонує preload-iframe поверх цього div через position:fixed.
+ * При розмонтуванні (навігація на іншу сторінку) iframe залишається
+ * в DOM і WebRTC-з'єднання не переривається.
+ */
+function VideoSlot({ streamUrl }) {
+    const { attachCamera, detachCamera } = useWebRTCPreload();
+    const ref = useRef(null);
+
+    useEffect(() => {
+        if (!streamUrl || !ref.current) return;
+        attachCamera(streamUrl, ref.current);
+        return () => detachCamera(streamUrl);
+    }, [streamUrl, attachCamera, detachCamera]);
+
+    return (
+        <div
+            ref={ref}
+            style={{ width: "100%", height: "100%", background: "transparent" }}
+        />
+    );
+}
 
 function useAlerts(events) {
     const [alerts, setAlerts] = useState({});
@@ -131,11 +157,7 @@ export default function CamerasGrid() {
                         >
                             <div className="video-container">
                                 {streamUrl ? (
-                                    <iframe
-                                        src={streamUrl}
-                                        style={{ width: "100%", height: "100%", border: "none", pointerEvents: "none" }}
-                                        allow="autoplay; fullscreen"
-                                    />
+                                    <VideoSlot streamUrl={streamUrl} />
                                 ) : (
                                     <div className="stream-placeholder">No stream available</div>
                                 )}

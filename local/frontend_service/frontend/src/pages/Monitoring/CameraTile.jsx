@@ -1,5 +1,6 @@
 import { useRef, useEffect, useLayoutEffect, useState } from "react";
 import { useGetZonesQuery } from "../../services/zonesApi";
+import { useWebRTCPreload } from "../../context/WebRTCPreloadContext";
 
 const getCenterOfPolygon = (points) => {
     if (!points || points.length === 0) return { x: 0, y: 0 };
@@ -38,6 +39,17 @@ export default function CameraTile({
     const [currentTime, setCurrentTime] = useState(new Date());
 
     const { data: zones = [] } = useGetZonesQuery(camera.zoneCameraId || camera.id);
+
+    // Підключаємо preload-iframe до placeholder-div.
+    // При розмонтуванні iframe залишається в DOM (WebRTC не переривається).
+    const { attachCamera, detachCamera } = useWebRTCPreload();
+    useEffect(() => {
+        const url = camera.webrtcUrl;
+        const el  = mediaRef.current;
+        if (!url || !el) return;
+        attachCamera(url, el);
+        return () => detachCamera(url);
+    }, [camera.webrtcUrl, attachCamera, detachCamera]);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -156,12 +168,18 @@ export default function CameraTile({
         <div className="camera-tile">
             <div className="video-inner">
                 {camera.webrtcUrl ? (
-                    <iframe
+                    /* Placeholder для preload-iframe.
+                       WebRTCPreloadProvider позиціонує реальний iframe
+                       поверх цього div через position:fixed + rAF.
+                       Ref потрібен для ResizeObserver canvas-overlay. */
+                    <div
                         ref={mediaRef}
-                        src={camera.webrtcUrl}
-                        allow="autoplay; fullscreen"
-                        title={`camera-stream-${camera.id}`}
-                        style={{ pointerEvents: "none" }}
+                        style={{
+                            width: "100%",
+                            height: "100%",
+                            background: "#000",
+                            display: "block",
+                        }}
                     />
                 ) : (
                     <video

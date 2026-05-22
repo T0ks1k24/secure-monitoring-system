@@ -10,6 +10,7 @@ import CamerasGrid from "./pages/CamerasGrid/CamerasGrid";
 import Settings from "./pages/Settings/Settings";
 import Login from "./pages/Login/Login";
 import Analytics from "./pages/Analytics/Analytics";
+import { WebRTCPreloadProvider } from "./context/WebRTCPreloadContext";
 
 if (window.windowAPI?.getWindowId) {
     window.windowAPI.getWindowId().then(id => {
@@ -44,7 +45,7 @@ export default function App() {
     const isLoggedIn = !!token;
 
     return (
-        <>
+        <WebRTCPreloadProvider>
             {isLoggedIn ? <TitleBar /> : <TitleBarMinimal />}
             <div className={isLoggedIn ? "app-content" : "app-login"}>
                 <Routes>
@@ -58,6 +59,6 @@ export default function App() {
                     <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
                 </Routes>
             </div>
-        </>
+        </WebRTCPreloadProvider>
     );
 }
