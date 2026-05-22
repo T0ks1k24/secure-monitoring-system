@@ -22,8 +22,12 @@ RUN uv sync --frozen --no-dev
 # Copy application code and models
 COPY . .
 
-# Set environment variables
+# Pre-download YOLOv8n weights at build time so runtime не потребує інтернету.
+# Модель зберігається в /root/.cache/ultralytics/
 ENV PATH="/app/.venv/bin:$PATH"
+RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')" \
+    && echo "YOLOv8n downloaded OK"
+
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 5000
