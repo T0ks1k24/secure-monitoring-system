@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Dict, List, Optional
@@ -25,6 +26,9 @@ from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+# Семафор: YOLO на CPU однопотокова — запускаємо по одному, але без блокування event loop
+_yolo_sem = asyncio.Semaphore(1)
+
 
 class AnalyzePipeline:
     """
@@ -41,8 +45,9 @@ class AnalyzePipeline:
         frame_ts = request.frame_timestamp or time.time()
         camera_id = request.camera_id
 
-        # ── Step 1: YOLO detect ───────────────────────────────────
-        raw_detections = detector.detect(frame)
+        # ── Step 1: YOLO detect (в окремому потоці, щоб не блокувати event loop) ──
+        async with _yolo_sem:
+            raw_detections = await asyncio.to_thread(detector.detect, frame)
         # raw_detections: List[(BoundingBox, class_name, confidence)]
 
         # ── Step 2: Track ─────────────────────────────────────────
@@ -64,12 +69,6 @@ class AnalyzePipeline:
             )
             zone_memberships[track.id] = track_zones
 
-        # Оновлюємо zone events (enter/exit)
-        zone_change_events = tracker.get_zone_events(
-            confirmed_tracks,
-            {tid: {z.id for z in zones_list}
-             for tid, zones_list in zone_memberships.items()},
-        )
 
         # ── Step 4: Risk analysis ─────────────────────────────────
         security_events = risk_engine.analyze(
@@ -124,8 +123,14 @@ class AnalyzePipeline:
                 frame, camera_id, zones, confirmed_tracks, security_events
             )
             frame_storage.save_frame(rendered_frame, camera_id, frame_ts)
+        else:
+            # Навіть якщо SAVE_PROCESSED_FRAMES False, ми можемо захотіти бачити детекції в логах або дебагу
+            # Але за запитом користувача "ті кадри що париходять зберігай" 
+            # ми покладаємось на налаштування або форсуємо тут.
+            # Вирішено: залишити перевірку settings, але впевнитись що .env має True.
+            pass
 
-        # 6. Формуємо відповідь
+        # ── Step 7: Log events ───────────────────────────────────
         if security_events:
             for evt in security_events:
                 logger.info(
@@ -135,7 +140,7 @@ class AnalyzePipeline:
                     f"zone={evt.zone_name or '-'}"
                 )
 
-        # ── Step 6: Build response ────────────────────────────────
+        # ── Step 8: Build response ────────────────────────────────
         tracked_objects = [t.to_schema() for t in confirmed_tracks]
 
         processing_ms = (time.monotonic() - t_start) * 1000

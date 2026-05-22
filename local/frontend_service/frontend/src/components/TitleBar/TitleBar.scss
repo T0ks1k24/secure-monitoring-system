@@ -56,4 +56,14 @@
       background-color: rgba(255, 255, 255, 0.2);
     }
   }
+  .logout-btn {
+    &:hover {
+      background-color: rgba(239, 68, 68, 0.2) !important;
+      color: #f87171 !important;
+
+      svg path {
+        fill: #f87171;
+      }
+    }
+  }
 }

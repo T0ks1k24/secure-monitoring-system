@@ -11,6 +11,7 @@ import {
 import { useGetCamerasQuery } from "../../services/camerasApi";
 import { useEventStream } from "../../hooks/useEventStream";
 import { useKioskMode } from "../../hooks/useKioskMode";
+import { useRole } from "../../hooks/useRole";
 
 const MEDIA_MTX_WEBRTC_URL = (import.meta.env.VITE_MEDIA_MTX_WEBRTC_URL || "http://localhost:8889").replace(/\/+$/, "");
 
@@ -87,6 +88,7 @@ export default function Monitoring() {
     const { data: cameras = [] } = useGetCamerasQuery();
     const { events, status: eventsStatus } = useEventStream();
     const { isKiosk, showExitBtn, setShowExitBtn, exitKiosk } = useKioskMode();
+    const { isAdmin } = useRole();
 
     const camera = useMemo(() => {
         const found = cameras.find(c => String(c.id) === String(cameraId));
@@ -110,10 +112,11 @@ export default function Monitoring() {
     const [editingZoneId, setEditingZoneId] = useState(null);
     const [expandedZoneId, setExpandedZoneId] = useState(null);
     const [riskFilter, setRiskFilter] = useState("all");
+    const [isRedrawing, setIsRedrawing] = useState(false);
 
     const [zoneForm, setZoneForm] = useState({
         name: "",
-        zone_type: "danger",
+        zone_type: "restricted",
         risk_weight: "",
         max_people_allowed: "",
         base_mode: "STRICT",
@@ -135,15 +138,14 @@ export default function Monitoring() {
     const [deleteZone] = useDeleteZoneMutation();
     const [updateZone] = useUpdateZoneMutation();
 
-    const hasWindowApi = typeof window !== "undefined" && !!window.windowAPI;
-
     const resetDrawState = () => {
         setMode("view");
         setEditingZoneId(null);
         setCurrentZone([]);
+        setIsRedrawing(false);
         setZoneForm({
             name: "",
-            zone_type: "danger",
+            zone_type: "restricted",
             risk_weight: "",
             max_people_allowed: "",
             base_mode: "STRICT",
@@ -160,15 +162,19 @@ export default function Monitoring() {
 
     const handleSaveZone = async () => {
         const isEdit = mode === "edit";
+        if (isRedrawing && currentZone.length < 3) return;
         if (!isEdit && currentZone.length < 3) return;
 
         const canvas = document.querySelector(".camera-tile canvas");
         if (!canvas) return;
         const { width, height } = canvas;
 
-        const pointsToSave = isEdit
-            ? activeZones.find(z => z.id === editingZoneId)?.points
+        const pointsToSave = (isEdit && !isRedrawing)
+            ? (activeZones.find(z => z.id === editingZoneId)?.points ?? [])
             : currentZone.map(([x, y]) => [x / width, y / height]);
+
+        // Якщо у edit-режимі без перемальовування полігон порожній — захист
+        if (!pointsToSave || pointsToSave.length < 3) return;
 
         const payload = {
             name: zoneForm.name || `Zone ${activeZones.length + 1}`,
@@ -208,7 +214,7 @@ export default function Monitoring() {
         .filter(evt => camera ? eventMatchesCamera(evt.camera_id, camera) : true)
         .filter(evt => riskFilter === "all" || evt.risk_level === riskFilter);
 
-    if (!camera) return <div className="loading">Завантаження камери...</div>;
+    if (!camera) return <div className="loading">Loading camera...</div>;
 
     return (
         <div className={`monitoring-container ${isPanelOpen ? "panel-open" : "panel-closed"}`}>
@@ -222,7 +228,12 @@ export default function Monitoring() {
                         currentDrawingPoints={currentZone}
                         mode={mode}
                         editingZoneId={editingZoneId}
-                        onPointAdd={(p) => mode === "draw" && setCurrentZone(prev => [...prev, p])}
+                        isRedrawing={isRedrawing}
+                        onPointAdd={(p) => {
+                            if (mode === "draw" || (mode === "edit" && isRedrawing)) {
+                                setCurrentZone(prev => [...prev, p]);
+                            }
+                        }}
                     />
                 </main>
 
@@ -234,25 +245,27 @@ export default function Monitoring() {
             </div>
 
             <aside className={`control-panel ${isPanelOpen ? "visible" : ""}`}>
-                <h2>Керування</h2>
+                <h2>Control panel</h2>
 
                 <div className="system-health">
-                    <div>Камера: <strong>{camera.name}</strong></div>
-                    <div>Статус: <strong>{camera.status}</strong></div>
+                    <div>Camera: <strong>{camera.name}</strong></div>
+                    <div>Status: <strong>{camera.status}</strong></div>
                 </div>
 
                 <button className="zone-btn" onClick={() => { setIsZoneMenuOpen(!isZoneMenuOpen); resetDrawState(); }}>
-                    {isZoneMenuOpen ? "Сховати зони" : "Управління зонами"}
+                    {isZoneMenuOpen ? "Hide zones" : isAdmin ? "Manage zones" : "View zones"}
                 </button>
 
                 {isZoneMenuOpen && (
                     <div className="zones-manager">
                         {mode === "view" ? (
                             <>
-                                <button className="zone-btn" onClick={() => setMode("draw")}>+ Додати нову зону</button>
+                                {isAdmin && (
+                                    <button className="zone-btn" onClick={() => setMode("draw")}>+ Add new zone</button>
+                                )}
                                 {activeZones.length > 0 && (
                                     <div className="zones-list">
-                                        <h3>Існуючі зони:</h3>
+                                        <h3>Existing zones:</h3>
                                         <ul>
                                             {activeZones.map(zone => (
                                                 <li key={zone.id} className={`zone-item ${expandedZoneId === zone.id ? "expanded" : ""}`}>
@@ -268,27 +281,31 @@ export default function Monitoring() {
                                                             </div>
                                                         </div>
                                                         <div className="zone-item-actions" onClick={e => e.stopPropagation()}>
-                                                            <button className="edit-mini" onClick={() => {
-                                                                setMode("edit");
-                                                                setEditingZoneId(zone.id);
-                                                                setExpandedZoneId(null);
-                                                                setZoneForm({
-                                                                    name: zone.name,
-                                                                    zone_type: zone.zone_type,
-                                                                    risk_weight: String(zone.risk_weight),
-                                                                    max_people_allowed: String(zone.max_people_allowed),
-                                                                    base_mode: zone.base_mode || "STRICT",
-                                                                    cooldown_seconds: String(zone.cooldown_seconds || ""),
-                                                                    risk_multipliers_relaxed: String(zone.risk_multipliers?.relaxed || ""),
-                                                                    risk_multipliers_strict: String(zone.risk_multipliers?.strict || ""),
-                                                                    people_thresholds_medium: String(zone.people_thresholds?.medium || ""),
-                                                                    people_thresholds_high: String(zone.people_thresholds?.high || ""),
-                                                                    decay_per_second: String(zone.accumulation?.decay_per_second || ""),
-                                                                    time_windows: zone.time_windows || [],
-                                                                    _showAdvanced: false,
-                                                                });
-                                                            }}>✎</button>
-                                                            <button className="delete-mini" onClick={() => setSelectedZoneId(zone.id)}>🗑</button>
+                                                            {isAdmin && <>
+                                                                <button className="edit-mini" onClick={() => {
+                                                                    setMode("edit");
+                                                                    setEditingZoneId(zone.id);
+                                                                    setExpandedZoneId(null);
+                                                                    setIsRedrawing(false);
+                                                                    setCurrentZone([]);
+                                                                    setZoneForm({
+                                                                        name: zone.name,
+                                                                        zone_type: zone.zone_type,
+                                                                        risk_weight: String(zone.risk_weight),
+                                                                        max_people_allowed: String(zone.max_people_allowed),
+                                                                        base_mode: zone.base_mode || "STRICT",
+                                                                        cooldown_seconds: String(zone.cooldown_seconds || ""),
+                                                                        risk_multipliers_relaxed: String(zone.risk_multipliers?.relaxed || ""),
+                                                                        risk_multipliers_strict: String(zone.risk_multipliers?.strict || ""),
+                                                                        people_thresholds_medium: String(zone.people_thresholds?.medium || ""),
+                                                                        people_thresholds_high: String(zone.people_thresholds?.high || ""),
+                                                                        decay_per_second: String(zone.accumulation?.decay_per_second || ""),
+                                                                        time_windows: zone.time_windows || [],
+                                                                        _showAdvanced: false,
+                                                                    });
+                                                                }}>✎</button>
+                                                                <button className="delete-mini" onClick={() => setSelectedZoneId(zone.id)}>🗑</button>
+                                                            </>}
                                                             <span className="zone-expand-arrow">{expandedZoneId === zone.id ? "▴" : "▾"}</span>
                                                         </div>
                                                     </div>
@@ -344,7 +361,12 @@ export default function Monitoring() {
 
                                     <div className="zone-field">
                                         <label>Zone type <InfoIcon text="Zone behavior type." /></label>
-                                        <select value={zoneForm.zone_type} onChange={e => setZoneForm({ ...zoneForm, zone_type: e.target.value })}>
+                                        <select value={zoneForm.zone_type} onChange={e => {
+                                            const newType = e.target.value;
+                                            // safe_zone → RELAXED, всі інші → STRICT
+                                            const newBaseMode = newType === "safe_zone" ? "RELAXED" : "STRICT";
+                                            setZoneForm({ ...zoneForm, zone_type: newType, base_mode: newBaseMode });
+                                        }}>
                                             <option value="restricted">Danger (restricted)</option>
                                             <option value="perimeter">Warning (perimeter)</option>
                                             <option value="safe_zone">Safe (safe zone)</option>
@@ -366,6 +388,37 @@ export default function Monitoring() {
                                         <input type="text" placeholder="default: 0 (unlimited)" value={zoneForm.max_people_allowed}
                                             onChange={e => setZoneForm({ ...zoneForm, max_people_allowed: e.target.value })} />
                                     </div>
+
+                                        {mode === "edit" && (
+                                            <div className="redraw-wrap">
+                                                {!isRedrawing ? (
+                                                    <button
+                                                        type="button"
+                                                        className="redraw-btn"
+                                                        onClick={() => {
+                                                            setIsRedrawing(true);
+                                                            setCurrentZone([]);
+                                                        }}
+                                                    >
+                                                        ↺ Redraw zone polygon
+                                                    </button>
+                                                ) : (
+                                                    <div className="redraw-drawing">
+                                                        <span className="redraw-hint">✎ Drawing new polygon...</span>
+                                                        <button
+                                                            type="button"
+                                                            className="redraw-cancel-btn"
+                                                            onClick={() => {
+                                                                setIsRedrawing(false);
+                                                                setCurrentZone([]);
+                                                            }}
+                                                        >
+                                                            ✕ Cancel redraw
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
                                     <button type="button" className="advanced-toggle"
                                         onClick={() => setZoneForm({ ...zoneForm, _showAdvanced: !zoneForm._showAdvanced })}>
@@ -460,7 +513,7 @@ export default function Monitoring() {
                 {!isZoneMenuOpen && (
                     <div className="events-block">
                         <div className="events-header">
-                            <h3>Події</h3>
+                            <h3>Events</h3>
                             <div className={`ws-status ws-${eventsStatus}`}>
                                 <span className="ws-dot" />
                                 {eventsStatus}
@@ -479,7 +532,7 @@ export default function Monitoring() {
                         </div>
                         <div className="events-scroll">
                             {visibleEvents.length === 0 ? (
-                                <div className="events-empty">Подій поки немає</div>
+                                <div className="events-empty">No events yet</div>
                             ) : (
                                 visibleEvents.map(event => (
                                     <EventCard key={`${event.id}-${event.timestamp}`} event={event} />
@@ -493,10 +546,10 @@ export default function Monitoring() {
             {selectedZoneId && (
                 <div className="modal-overlay">
                     <div className="modal-box">
-                        <p>Ви впевнені, що хочете видалити цю зону?</p>
+                        <p>Are you sure you want to delete this zone?</p>
                         <div className="modal-actions">
-                            <button className="delete-btn" onClick={async () => { await deleteZone(selectedZoneId); setSelectedZoneId(null); }}>Видалити</button>
-                            <button className="zone-btn" style={{ background: "#475569" }} onClick={() => setSelectedZoneId(null)}>Скасувати</button>
+                            <button className="delete-btn" onClick={async () => { await deleteZone(selectedZoneId); setSelectedZoneId(null); }}>Delete</button>
+                            <button className="zone-btn" style={{ background: "#475569" }} onClick={() => setSelectedZoneId(null)}>Cancel</button>
                         </div>
                     </div>
                 </div>

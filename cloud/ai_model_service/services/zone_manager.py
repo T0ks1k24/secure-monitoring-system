@@ -58,13 +58,18 @@ def bbox_intersects_polygon(
     return False
 
 
+EMPTY_CACHE_TTL = 2.0   # порожній результат — перепитуємо часто
+
 class ZoneCacheEntry:
     def __init__(self, zones: List[Zone]) -> None:
         self.zones = zones
         self.loaded_at = time.monotonic()
+        # Для порожніх списків використовуємо короткий TTL,
+        # щоб швидко повторити запит після додавання зон
+        self._ttl = EMPTY_CACHE_TTL if not zones else settings.ZONE_CACHE_TTL
 
     def is_expired(self) -> bool:
-        return (time.monotonic() - self.loaded_at) > settings.ZONE_CACHE_TTL
+        return (time.monotonic() - self.loaded_at) > self._ttl
 
 
 class ZoneManager:
@@ -74,11 +79,17 @@ class ZoneManager:
         self._http_client: Optional[httpx.AsyncClient] = None
 
     async def startup(self) -> None:
-        self._http_client = httpx.AsyncClient(
+        self._http_client = self._make_client()
+        logger.info("ZoneManager started")
+
+    @staticmethod
+    def _make_client() -> httpx.AsyncClient:
+        """Створює httpx клієнт з retry=1 для відновлення після stale keep-alive."""
+        return httpx.AsyncClient(
             base_url=settings.BACKEND_API_URL,
             timeout=5.0,
+            transport=httpx.AsyncHTTPTransport(retries=1),
         )
-        logger.info("ZoneManager started")
 
     async def shutdown(self) -> None:
         if self._http_client:
@@ -91,9 +102,21 @@ class ZoneManager:
         return self._cache.get(camera_id, ZoneCacheEntry([])).zones
 
     def invalidate(self, camera_id: str) -> None:
-        if camera_id in self._cache:
-            del self._cache[camera_id]
-            logger.info("Zone cache invalidated for camera: %s", camera_id)
+        """Інвалідує кеш для camera_id та всіх його аліасів (числовий ↔ camera{N})."""
+        to_remove = {camera_id}
+        if camera_id.isdigit():
+            to_remove.add(f"camera{camera_id}")
+        elif camera_id.startswith("camera") and camera_id[6:].isdigit():
+            to_remove.add(camera_id[6:])
+
+        removed = False
+        for cid in to_remove:
+            if cid in self._cache:
+                del self._cache[cid]
+                logger.info("Zone cache invalidated for camera: %s", cid)
+                removed = True
+        if not removed:
+            logger.debug("Zone cache invalidate called for %s — no cached entry found", camera_id)
 
     def invalidate_all(self) -> None:
         self._cache.clear()
@@ -156,7 +179,7 @@ class ZoneManager:
 
         endpoints = []
         for cid in candidate_ids:
-            endpoints.append(f"/zones/{cid}")
+            endpoints.append(f"/api/zones/{cid}")
         last_error: Exception | None = None
 
         try:
@@ -172,6 +195,7 @@ class ZoneManager:
                         zone_payloads = candidate_payloads
                         break
                 except httpx.HTTPError as exc:
+                    logger.warning("Zone fetch error [%s]: %s", endpoint, exc)
                     last_error = exc
 
             zones = [self._parse_backend_zone(item) for item in zone_payloads]
@@ -198,6 +222,9 @@ class ZoneManager:
         zone_type = payload.get("zone_type", "restricted")
         enabled = payload.get("enabled", payload.get("is_active", True))
 
+        # Для safe_zone базовий режим завжди RELAXED — люди в ній є нормою
+        default_base_mode = "RELAXED" if zone_type == "safe_zone" else "STRICT"
+
         return Zone(
             id=str(payload["id"]),
             camera_id=str(payload["camera_id"]),
@@ -209,7 +236,7 @@ class ZoneManager:
                 "risk_weight": payload.get("risk_weight"),
                 "max_people_allowed": payload.get("max_people_allowed"),
                 "time_windows": payload.get("time_windows", []),
-                "base_mode": payload.get("base_mode", "STRICT"),
+                "base_mode": payload.get("base_mode") or default_base_mode,
                 "risk_multipliers": payload.get(
                     "risk_multipliers", {"relaxed": 0.3, "strict": 1.5}
                 ),

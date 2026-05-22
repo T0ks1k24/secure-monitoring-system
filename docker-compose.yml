@@ -76,6 +76,36 @@ services:
     networks:
       - security_net
 
+  camera_publisher_cam3:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    container_name: camera_publisher_cam3
+    restart: unless-stopped
+    depends_on:
+      - mediamtx
+    command:
+      - -re
+      - -stream_loop
+      - "-1"
+      - -i
+      - /videos/cam3.mp4
+      - -c:v
+      - libx264
+      - -preset
+      - ultrafast
+      - -tune
+      - zerolatency
+      - -pix_fmt
+      - yuv420p
+      - -f
+      - rtsp
+      - -rtsp_transport
+      - tcp
+      - rtsp://mediamtx:8554/camera3
+    volumes:
+      - ./video:/videos:ro
+    networks:
+      - security_net
+
   postgres:
     image: postgres:16
     container_name: postgres_service
@@ -133,6 +163,12 @@ services:
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
     networks:
       - security_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   ai_service:
     build:
@@ -142,6 +178,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      backend:
+        condition: service_healthy
     volumes:
       - ./cloud/ai_model_service:/app
     ports:
@@ -150,8 +188,15 @@ services:
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
       BACKEND_API_URL: http://backend:8000
       EVIDENCE_PUBLIC_BASE_URL: http://localhost:5000
+      ZONE_CACHE_TTL: "10"
     networks:
       - security_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # LOCAL COMPONENTS
   frame_extractor:
@@ -160,8 +205,10 @@ services:
     container_name: frame_extractor_service
     restart: unless-stopped
     depends_on:
-      - ai_service
-      - mediamtx
+      ai_service:
+        condition: service_healthy
+      mediamtx:
+        condition: service_started
     volumes:
       - ./local/frame_extractor_service:/app
     ports:
@@ -170,6 +217,12 @@ services:
       AI_SERVICE_URL: http://ai_service:5000/api/v1/detect
     networks:
       - security_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   frontend:
     build:

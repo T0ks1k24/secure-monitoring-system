@@ -67,3 +67,8 @@ button {
 .titlebar .no-drag {
   -webkit-app-region: no-drag;
 }
+.app-login {
+  width: 100%;
+  height: calc(100vh - 35px);
+  overflow: hidden;
+}

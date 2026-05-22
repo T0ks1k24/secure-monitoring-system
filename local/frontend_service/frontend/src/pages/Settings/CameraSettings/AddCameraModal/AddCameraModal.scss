@@ -193,6 +193,19 @@
     letter-spacing: 0.08em;
     margin: 0 0 20px;
   }
+  .info-tooltip {
+    &:hover::after {
+      left: auto;
+      right: 0;
+      transform: none;
+    }
+    
+    &:hover::before {
+      left: auto;
+      right: 8px;
+      transform: none;
+    }
+  }
 }
 
 .adv-section {
@@ -249,7 +262,7 @@
   }
 }
 
-.info-tooltip {
+.info-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -260,39 +273,27 @@
   border-radius: 50%;
   font-size: 11px;
   cursor: help;
-  position: relative;
   transition: all 0.2s;
   flex-shrink: 0;
+  user-select: none;
 
-  &:hover { background-color: #2563eb; color: white; }
-
-  &:hover::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: 130%;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #1e293b;
-    border: 1px solid #334155;
-    color: #f1f5f9;
-    padding: 8px 12px;
-    border-radius: 6px;
-    white-space: normal;
-    width: 200px;
-    z-index: 2100;
-    font-weight: 400;
-    font-size: 12px;
-    line-height: 1.4;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  &:hover {
+    background-color: #2563eb;
+    color: white;
   }
-
-  &:hover::before {
-    content: "";
-    position: absolute;
-    bottom: 110%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 6px solid transparent;
-    border-top-color: #334155;
-  }
+}
+.info-tooltip-popup {
+  position: fixed;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #f1f5f9;
+  padding: 8px 12px;
+  border-radius: 6px;
+  width: 200px;
+  z-index: 9999;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  transform: translateY(-100%);
 }

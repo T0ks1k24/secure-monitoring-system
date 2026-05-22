@@ -1,9 +1,29 @@
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { logOut } from "../../services/auth/authSlice";
 import "./TitleBar.scss"
+
+
+const HomeIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="white" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8 1L1 7h2v7h4v-4h2v4h4V7h2L8 1z" />
+  </svg>
+);
+
+const LogoutIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="white">
+    <path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3v-1.5H3.5v-9H6V2z" />
+    <path d="M10.5 4.5L13.5 8l-3 3.5V9.5H6.5v-3h4V4.5z" />
+  </svg>
+);
 
 export default function TitleBar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
+  const cameraId = location.pathname.startsWith("/monitoring/")
+    ? location.pathname.split("/monitoring/")[1]
+    : null;
 
   const isMonitoring = location.pathname.startsWith("/monitoring") || location.pathname === "/";
   const isSettings = location.pathname.startsWith("/settings");
@@ -12,19 +32,19 @@ export default function TitleBar() {
     window.open(window.location.origin, "_blank", "width=1200,height=800");
   };
 
-  const HomeIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="white" xmlns="http://www.w3.org/2000/svg">
-      <path d="M8 1L1 7h2v7h4v-4h2v4h4V7h2L8 1z" />
-    </svg>
-  );
+  const handleLogout = () => {
+    localStorage.setItem("auth-event", JSON.stringify({ type: "logout", ts: Date.now() }));
+    dispatch(logOut());
+    navigate("/login");
+  };
 
   return (
     <div id="titlebar">
       <div className="nav-buttons">
         <button onClick={() => navigate(-1)}>🡐</button>
         <button onClick={() => navigate(1)}>🡒</button>
-        <button onClick={() => navigate("/")} title="Головна"><HomeIcon/></button>
-        <button className="popout-main-btn" onClick={openNewWindow} title="Відкрити нове робоче вікно">
+        <button onClick={() => navigate("/")} title="Home"><HomeIcon/></button>
+        <button className="popout-main-btn" onClick={openNewWindow} title="Open new workspace window">
           ❐
         </button>
       </div>
@@ -33,14 +53,28 @@ export default function TitleBar() {
 
       <div className="window-buttons">
         {!isSettings && (
-          <button onClick={() => navigate("/settings")} title="Налаштування">⚙️</button>
+          <button onClick={() => navigate("/settings")} title="Settings">⚙️</button>
         )}
+        <button
+          onClick={() => navigate(cameraId ? `/analytics?camera=${cameraId}` : "/analytics")}
+          title="Analytics"
+          className={location.pathname === "/analytics" ? "active" : ""}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="white">
+            <rect x="1" y="8" width="3" height="7" rx="1" />
+            <rect x="6" y="4" width="3" height="11" rx="1" />
+            <rect x="11" y="1" width="3" height="14" rx="1" />
+          </svg>
+        </button>
         {isMonitoring && (
           <button onClick={() => {
             window.windowAPI.toggleKiosk();
             window.dispatchEvent(new CustomEvent("kiosk-toggle"));
-          }} title="Режим моніторингу">⛶</button>
+          }} title="Monitoring mode">⛶</button>
         )}
+        <button onClick={handleLogout} title="Log out" className="logout-btn">
+          <LogoutIcon />
+        </button>
         <button onClick={() => window.windowAPI.minimize()}>—</button>
         <button onClick={() => window.windowAPI.maximize()}>☐</button>
         <button onClick={() => window.windowAPI.close()}>✕</button>

@@ -2,7 +2,7 @@ export default function SlotCameraPickerModal({ allCameras, occupiedCameraIds, o
     return (
         <div className="modal-overlay">
             <div className="modal-box" style={{ maxWidth: "400px", width: "90%" }}>
-                <h3 style={{ color: "white", marginBottom: "20px" }}>Виберіть камеру</h3>
+                <h3 style={{ color: "white", marginBottom: "20px" }}>Select camera</h3>
 
                 <div style={{ maxHeight: "350px", overflowY: "auto", marginBottom: "20px", display: "flex", flexDirection: "column", gap: "8px" }}>
                     {allCameras.map(cam => {
@@ -26,9 +26,9 @@ export default function SlotCameraPickerModal({ allCameras, occupiedCameraIds, o
                                 onMouseEnter={e => { if (!isOccupied) e.currentTarget.style.borderColor = "#2563eb"; }}
                                 onMouseLeave={e => { e.currentTarget.style.borderColor = "#334155"; }}
                             >
-                                <span style={{ color: "white", fontWeight: "600" }}>{cam.name || `Камера ${cam.id}`}</span>
+                                <span style={{ color: "white", fontWeight: "600" }}>{cam.name || `Camera ${cam.id}`}</span>
                                 <span style={{ color: "#64748b", fontSize: "11px" }}>
-                                    {isOccupied ? "Вже додана" : `ID: ${cam.id}`}
+                                    {isOccupied ? "Already assigned" : `ID: ${cam.id}`}
                                 </span>
                             </div>
                         );
@@ -39,7 +39,7 @@ export default function SlotCameraPickerModal({ allCameras, occupiedCameraIds, o
                     onClick={onClose}
                     style={{ width: "100%", padding: "10px", borderRadius: "6px", background: "#475569", color: "white", border: "none", cursor: "pointer" }}
                 >
-                    Скасувати
+                    Cancel
                 </button>
             </div>
         </div>

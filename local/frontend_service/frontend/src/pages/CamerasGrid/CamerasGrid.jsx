@@ -100,7 +100,7 @@ export default function CamerasGrid() {
         id ? cameras.find(c => String(c.id) === String(id)) || null : null
     );
 
-    if (isLoading) return <div className="loading">Завантаження камер...</div>;
+    if (isLoading) return <div className="loading">Loading cameras...</div>;
 
     return (
         <div className="cameras-page">
@@ -112,7 +112,7 @@ export default function CamerasGrid() {
                     if (!cam) return (
                         <div key={`empty-${i}`} className="camera-card empty">
                             <div className="video-container">
-                                <div className="stream-placeholder">Слот {i + 1}</div>
+                                <div className="stream-placeholder">Slot {i + 1}</div>
                             </div>
                         </div>
                     );
@@ -137,7 +137,7 @@ export default function CamerasGrid() {
                                         allow="autoplay; fullscreen"
                                     />
                                 ) : (
-                                    <div className="stream-placeholder">Немає stream path</div>
+                                    <div className="stream-placeholder">No stream available</div>
                                 )}
                             </div>
 
@@ -155,7 +155,7 @@ export default function CamerasGrid() {
 
                             <div className="camera-label">
                                 <span className={`status-dot ${cam.status}`}></span>
-                                {cam.name || `Камера ${cam.id}`}
+                                {cam.name || `Camera ${cam.id}`}
                                 {alert && <span className="label-alert-dot" style={{ background: risk.color }} />}
                             </div>
                         </div>

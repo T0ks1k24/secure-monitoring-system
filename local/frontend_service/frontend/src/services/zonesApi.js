@@ -1,12 +1,13 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createBaseQueryWithRefresh } from './auth/baseQueryWithRefresh';
 
 export const zonesApi = createApi({
     reducerPath: 'zonesApi',
-    baseQuery: fetchBaseQuery({ baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000/' }),
+    baseQuery: createBaseQueryWithRefresh(import.meta.env.VITE_API_URL || "http://localhost:8000"),
     tagTypes: ['Zones'],
     endpoints: (builder) => ({
         getZones: builder.query({
-            query: (cameraId) => `zones/${cameraId}`,
+            query: (cameraId) => `api/zones/${cameraId}`,
             transformResponse: (response) => response.map(zone => ({
                 id: zone.id,
                 name: zone.name,
@@ -26,7 +27,7 @@ export const zonesApi = createApi({
 
         addZone: builder.mutation({
             query: (payload) => ({
-                url: 'zones/',
+                url: 'api/zones/',
                 method: 'POST',
                 body: payload,
             }),
@@ -35,7 +36,7 @@ export const zonesApi = createApi({
 
         updateZone: builder.mutation({
             query: ({ id, ...payload }) => ({
-                url: `zones/${id}`,
+                url: `api/zones/${id}`,
                 method: 'PUT',
                 body: payload,
             }),
@@ -44,7 +45,7 @@ export const zonesApi = createApi({
 
         deleteZone: builder.mutation({
             query: (id) => ({
-                url: `zones/${id}`,
+                url: `api/zones/${id}`,
                 method: 'DELETE',
             }),
             invalidatesTags: ['Zones'],

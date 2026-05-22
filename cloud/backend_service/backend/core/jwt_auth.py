@@ -18,7 +18,7 @@ def decode_token(token: str):
             algorithms=[settings.JWT_ALGORITHM]
         )
         return payload
-    except:
+    except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 

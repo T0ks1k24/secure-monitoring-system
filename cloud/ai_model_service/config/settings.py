@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     PORT: int = 5000
 
     # ── YOLO ──────────────────────────────────────────────────────
-    MODEL_PATH: str = "yolo26s.pt"
+    MODEL_PATH: str = "yolov8n.pt"
     # Confidence threshold (0.0–1.0). Нижче = більше детекцій, більше хибних.
     DETECTION_CONFIDENCE: float = 0.4
     # IoU threshold для NMS (прибирає дублікати)
@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # Максимум детекцій за кадр
     MAX_DETECTIONS: int = 50
     # Input розмір YOLO. 320=швидко/грубо, 640=баланс, 1280=повільно/точно
-    INFERENCE_IMG_SIZE: int = 640
+    INFERENCE_IMG_SIZE: int = 320
     # Пристрій: "cpu", "cuda", "mps"
     DEVICE: str = "cpu"
 

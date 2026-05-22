@@ -14,6 +14,20 @@ COLORS = {
     RiskLevel.CRITICAL: (0, 0, 255),    # Red
 }
 
+# Семантичний порядок ризику для порівняння (RiskLevel — str-enum,
+# звичайний оператор > порівнює лексично: "medium" > "high" = False!)
+_RISK_ORDER: Dict[RiskLevel, int] = {
+    RiskLevel.LOW: 0,
+    RiskLevel.MEDIUM: 1,
+    RiskLevel.HIGH: 2,
+    RiskLevel.CRITICAL: 3,
+}
+
+
+def _risk_gt(a: RiskLevel, b: RiskLevel) -> bool:
+    """Повертає True якщо a має вищий ризик ніж b."""
+    return _RISK_ORDER.get(a, -1) > _RISK_ORDER.get(b, -1)
+
 class VisualRenderer:
     """
     Shared utility for drawing overlays on frames: zones, tracks, and camera info.
@@ -75,11 +89,14 @@ class VisualRenderer:
         """Draws bounding boxes, IDs, and risk info for tracked objects."""
         h, w = frame.shape[:2]
         
-        # Build mapping from track_id to its highest risk event
-        track_events = {}
+        # Build mapping from track_id to its highest risk event.
+        # ВАЖЛИВО: не використовувати `>` напряму — RiskLevel є str-enum,
+        # "medium" > "high" = False (лексично), використовуємо _risk_gt.
+        track_events: Dict[int, SecurityEvent] = {}
         for event in events:
             if event.track_id:
-                if event.track_id not in track_events or event.risk_level > track_events[event.track_id].risk_level:
+                existing = track_events.get(event.track_id)
+                if existing is None or _risk_gt(event.risk_level, existing.risk_level):
                     track_events[event.track_id] = event
 
         for track in tracks:

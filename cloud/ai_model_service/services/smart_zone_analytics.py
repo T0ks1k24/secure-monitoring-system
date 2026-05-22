@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, time
 from typing import Dict, List, Optional, Set
 
-from schemas.events import EventType, RiskLevel, SecurityEvent, Zone
+from schemas.events import EventType, RiskLevel, SecurityEvent, Zone, ZoneType
 from services.tracker import Track
 
 
@@ -122,7 +122,7 @@ class SmartZoneAnalytics:
         if people_count == 0:
             return None
 
-        cooldown = float(zone.metadata.get("cooldown_seconds", 5))
+        cooldown = float(zone.metadata.get("cooldown_seconds", 2))
         if (
             state.last_event_timestamp is not None
             and (now - state.last_event_timestamp).total_seconds() < cooldown
@@ -133,6 +133,10 @@ class SmartZoneAnalytics:
         score_level = _risk_from_score(state.risk_score)
         smart_level = self._smart_level(zone=zone, mode=mode, people_count=people_count)
         effective_level = _max_risk(score_level, smart_level)
+
+        # Для safe_zone — ризик ніколи не може перевищувати LOW
+        if zone.zone_type == ZoneType.SAFE_ZONE:
+            effective_level = RiskLevel.LOW
 
         return SecurityEvent(
             event_id=str(uuid.uuid4()),
@@ -169,16 +173,27 @@ class SmartZoneAnalytics:
 
     @staticmethod
     def _smart_level(zone: Zone, mode: str, people_count: int) -> RiskLevel:
-        if mode == "STRICT":
-            if people_count >= 2:
-                return RiskLevel.CRITICAL
-            if people_count == 1:
-                return RiskLevel.HIGH
+        # Безпечна зона — присутність людей є нормою, ризик не перевищує LOW
+        if zone.zone_type == ZoneType.SAFE_ZONE:
             return RiskLevel.LOW
 
+        # Порогові значення з метаданих зони (встановлюються на фронтенді)
         thresholds = zone.metadata.get("people_thresholds", {})
         medium_threshold = int(thresholds.get("medium", 2))
         high_threshold = int(thresholds.get("high", 5))
+
+        if mode == "STRICT":
+            # У STRICT режимі: HIGH вже при medium-порозі, CRITICAL при high-порозі
+            # Якщо навіть 1 людина — починаємо з MEDIUM (щоб не ігнорувати трафік)
+            if people_count >= high_threshold:
+                return RiskLevel.CRITICAL
+            if people_count >= medium_threshold:
+                return RiskLevel.HIGH
+            if people_count >= 1:
+                return RiskLevel.MEDIUM
+            return RiskLevel.LOW
+
+        # RELAXED режим — стандартна шкала за порогами
         if people_count >= high_threshold:
             return RiskLevel.HIGH
         if people_count >= medium_threshold:

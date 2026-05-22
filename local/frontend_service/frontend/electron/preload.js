@@ -11,6 +11,11 @@ contextBridge.exposeInMainWorld("windowAPI", {
   maximize: () => ipcRenderer.send("window:maximize"),
   close: () => ipcRenderer.send("window:close"),
   toggleKiosk: () => ipcRenderer.send("window:kiosk"),
-  onKioskChange: (cb) => ipcRenderer.on("kiosk-changed", (_, val) => cb(val)),
+  onKioskChange: (cb) => {
+    const handler = (_, val) => cb(val);
+    ipcRenderer.on("kiosk-changed", handler);
+    // Return a cleanup function so callers can unsubscribe
+    return () => ipcRenderer.removeListener("kiosk-changed", handler);
+  },
   getWindowId: () => ipcRenderer.invoke("window:get-id"),
 })

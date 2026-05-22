@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from infrastructure.repositories.event_repo_impl import EventRepositoryImpl
+from core.jwt_auth import get_current_user
 
 
 router = APIRouter(prefix="/events", tags=["Events"])
@@ -10,7 +11,7 @@ def get_event_repo():
 
 
 @router.get("/")
-def get_all(repo = Depends(get_event_repo)):
+def get_all(repo = Depends(get_event_repo), _user = Depends(get_current_user)):
 
     events = repo.get_all()
 

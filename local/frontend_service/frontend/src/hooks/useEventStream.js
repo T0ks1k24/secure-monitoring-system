@@ -4,7 +4,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").r
 const WS_EVENTS_URL = import.meta.env.VITE_WS_EVENTS_URL ||
     `${API_BASE_URL.replace(/^https/, "wss").replace(/^http/, "ws")}/ws/events`;
 
-const MAX_EVENTS = 50;
+const MAX_EVENTS = 200;
 
 function normalizeEvent(raw) {
     if (!raw || typeof raw !== "object") return null;
@@ -23,6 +23,40 @@ function normalizeEvent(raw) {
         timestamp: raw.timestamp || new Date().toISOString(),
         metadata: raw.metadata || {},
     };
+}
+
+async function fetchEventsWithAuth() {
+    let token = localStorage.getItem("accessToken");
+
+    const makeRequest = (t) => fetch(`${API_BASE_URL}/events/`, {
+        headers: t ? { Authorization: `Bearer ${t}` } : {},
+    });
+
+    let response = await makeRequest(token);
+
+    // Токен протік — спробуємо оновити через refresh
+    if (response.status === 401) {
+        const refreshToken = localStorage.getItem("refreshToken");
+        if (refreshToken) {
+            try {
+                const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ refresh_token: refreshToken }),
+                });
+                if (refreshRes.ok) {
+                    const data = await refreshRes.json();
+                    if (data.access_token) {
+                        localStorage.setItem("accessToken", data.access_token);
+                        token = data.access_token;
+                        response = await makeRequest(token);
+                    }
+                }
+            } catch { /* ігноруємо помилки refresh */ }
+        }
+    }
+
+    return response.ok ? response.json() : [];
 }
 
 export function useEventStream() {
@@ -60,8 +94,7 @@ export function useEventStream() {
             };
         };
 
-        fetch(`${API_BASE_URL}/events/`)
-            .then(r => r.ok ? r.json() : [])
+        fetchEventsWithAuth()
             .then(data => {
                 if (!Array.isArray(data)) return;
                 const prepared = data.map(normalizeEvent).filter(Boolean)

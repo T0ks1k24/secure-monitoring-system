@@ -10,3 +10,7 @@ wheels/
 .venv
 mediamtx
 frames/
+storage
+.claude
+.pytest_cache
+

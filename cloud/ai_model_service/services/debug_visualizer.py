@@ -37,6 +37,3 @@ class DebugVisualizer:
 
 # Singleton instance
 debug_visualizer = DebugVisualizer()
-
-# Singleton instance
-debug_visualizer = DebugVisualizer()
