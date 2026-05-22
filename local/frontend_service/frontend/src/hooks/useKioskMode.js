@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 
 export function useKioskMode() {
-    const [isKiosk, setIsKiosk] = useState(false);
+    const [isKiosk, setIsKiosk] = useState(
+        () => document.body.classList.contains("kiosk-mode")
+    );
     const [showExitBtn, setShowExitBtn] = useState(false);
 
     const exitKiosk = useCallback(() => {
